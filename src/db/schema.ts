@@ -86,6 +86,7 @@ export const uploads = sqliteTable(
     ownerUserId: text('owner_user_id').references(() => authUsers.id, {
       onDelete: 'set null',
     }),
+    ownerAnonId: text('owner_anon_id'),
     expiresAt: text('expires_at'),
     r2Key: text('r2_key').notNull(),
     publicUrl: text('public_url').notNull(),
@@ -116,6 +117,10 @@ export const uploads = sqliteTable(
     r2KeyUnique: uniqueIndex('uploads_r2_key_unique').on(table.r2Key),
     ownerCreatedIdx: index('idx_uploads_owner_created').on(
       table.ownerUserId,
+      table.createdAt,
+    ),
+    ownerAnonCreatedIdx: index('idx_uploads_owner_anon_created').on(
+      table.ownerAnonId,
       table.createdAt,
     ),
     createdIdx: index('idx_uploads_created').on(table.createdAt),
