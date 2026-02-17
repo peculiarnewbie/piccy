@@ -23,6 +23,7 @@
   /* Animation */
   --animate-slide-up: slide-up 0.45s ease both;
   --animate-route-enter: route-enter 0.42s cubic-bezier(0.2, 0.72, 0.24, 1) both;
+  --animate-panel-in: panel-in 0.3s cubic-bezier(0.2, 0.72, 0.24, 1) both;
 }
 
 @keyframes slide-up {
@@ -66,6 +67,17 @@
   animation: uploaded-flash 1.8s cubic-bezier(0.2, 0.72, 0.24, 1) both;
 }
 
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 body {
   margin: 0;
   background: var(--color-bg);
@@ -76,7 +88,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-route-enter {
+  .animate-route-enter,
+  .animate-panel-in {
     animation: none !important;
   }
 

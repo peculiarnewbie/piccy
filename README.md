@@ -47,6 +47,9 @@ If you prefer not to use Tailwind CSS:
    GOOGLE_CLIENT_SECRET=
    DISCORD_CLIENT_ID=
    DISCORD_CLIENT_SECRET=
+   PAID_USER_EMAILS=paid1@example.com,paid2@example.com
+   # Optional: use stable IDs instead of emails
+   PAID_USER_IDS=
    ```
 
 4. Add OAuth redirect URLs in provider consoles:

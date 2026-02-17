@@ -136,7 +136,7 @@ Build the fastest image sharing flow on the web:
 - [x] URL/Markdown/BBCode output copy actions
 - [x] Copy tracking calls from uploader actions
 - [x] Top bar with auth-aware sign-in/sign-out state
-- [ ] Multi-file upload support
+- [x] Multi-file upload support
 - [ ] Inline upload cards in a live library context
 - [ ] Centralized toast stack (current feedback is inline message blocks)
 

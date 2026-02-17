@@ -2,7 +2,7 @@ import { Link } from '@tanstack/solid-router'
 import { Show } from 'solid-js'
 import { authClient } from '../lib/auth-client'
 
-export default function TopBar(props: { onUploadClick?: () => void }) {
+export default function TopBar() {
   const session = authClient.useSession()
 
   return (
@@ -17,14 +17,6 @@ export default function TopBar(props: { onUploadClick?: () => void }) {
 
       {/* Center: Tabs */}
       <div class="flex items-center gap-0.5">
-        <Link
-          to="/"
-          class="tab"
-          activeProps={{ class: 'tab tab-active' }}
-          activeOptions={{ exact: true }}
-        >
-          Upload
-        </Link>
         <Link
           to="/library"
           class="tab"
@@ -43,7 +35,7 @@ export default function TopBar(props: { onUploadClick?: () => void }) {
         </Link>
       </div>
 
-      {/* Right: Actions */}
+      {/* Right: Auth */}
       <div class="flex items-center gap-2">
         <Show when={!session().isPending}>
           <Show
@@ -85,12 +77,6 @@ export default function TopBar(props: { onUploadClick?: () => void }) {
               </div>
             )}
           </Show>
-        </Show>
-
-        <Show when={props.onUploadClick}>
-          <button class="btn btn-accent" onClick={props.onUploadClick}>
-            Upload
-          </button>
         </Show>
       </div>
     </nav>

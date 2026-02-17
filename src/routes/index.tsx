@@ -1,10 +1,19 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/solid-router'
-import { For, Show, createSignal, onCleanup, onMount } from 'solid-js'
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js'
 import { authClient } from '../lib/auth-client'
 
 export const Route = createFileRoute('/')({ component: HomeRoute })
 
 function HomeRoute() {
+  const session = authClient.useSession()
+  const navigate = useNavigate()
+
+  createEffect(() => {
+    if (!session().isPending && session().data?.user) {
+      void navigate({ to: '/library', replace: true })
+    }
+  })
+
   return <PiccyWorkspace view="home" />
 }
 

@@ -4,6 +4,7 @@ import { auth } from '../lib/auth'
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024
 const MAX_ANONYMOUS_UPLOADS = 50
 const ANONYMOUS_UPLOAD_EXPIRY_DAYS = 30
+const PAID_MULTI_UPLOAD_BATCH_FIELD = 'batchSize'
 const SESSION_LOOKUP_TIMEOUT_MS = 1_500
 const LIBRARY_PAGE_SIZE = 30
 const ANONYMOUS_COOKIE_NAME = 'piccy_anon_id'
@@ -115,8 +116,15 @@ type IdentityResolutionOptions = {
 
 type RequestIdentity = {
   userId: string | null
+  userEmail: string | null
+  isPaidUser: boolean
   anonymousId: string | null
   setCookieHeader: string | null
+}
+
+type AuthenticatedUser = {
+  id: string
+  email: string | null
 }
 
 const respondJson = (
@@ -353,6 +361,51 @@ const getRuntimeEnvString = (key: string): string | null => {
   return trimmed.length > 0 ? trimmed : null
 }
 
+const parseEnvCsvSet = (key: string): Set<string> => {
+  const value = getRuntimeEnvString(key)
+  if (!value) {
+    return new Set<string>()
+  }
+
+  return new Set(
+    value
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => entry.length > 0),
+  )
+}
+
+const isAuthenticatedUserPaid = (user: AuthenticatedUser | null): boolean => {
+  if (!user) {
+    return false
+  }
+
+  const paidUserIds = parseEnvCsvSet('PAID_USER_IDS')
+  if (paidUserIds.has(user.id.toLowerCase())) {
+    return true
+  }
+
+  if (!user.email) {
+    return false
+  }
+
+  const paidUserEmails = parseEnvCsvSet('PAID_USER_EMAILS')
+  return paidUserEmails.has(user.email.toLowerCase())
+}
+
+const parseBatchSize = (value: FormDataEntryValue | null): number => {
+  if (typeof value !== 'string') {
+    return 1
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed <= 1) {
+    return 1
+  }
+
+  return parsed
+}
+
 const getAnonymousCookieSigningSecret = (): string | null => {
   return getRuntimeEnvString('BETTER_AUTH_SECRET')
 }
@@ -521,7 +574,10 @@ const resolveRequestIdentity = async (
   options: IdentityResolutionOptions,
 ): Promise<RequestIdentity> => {
   const signingSecret = getAnonymousCookieSigningSecret()
-  const userId = await getAuthenticatedUserId(request)
+  const authenticatedUser = await getAuthenticatedUser(request)
+  const userId = authenticatedUser?.id ?? null
+  const userEmail = authenticatedUser?.email ?? null
+  const isPaidUser = isAuthenticatedUserPaid(authenticatedUser)
   let anonymousId = await parseAnonymousIdFromCookie(request, signingSecret)
   let setCookieHeader: string | null = null
 
@@ -534,6 +590,8 @@ const resolveRequestIdentity = async (
 
     return {
       userId,
+      userEmail,
+      isPaidUser,
       anonymousId,
       setCookieHeader,
     }
@@ -550,6 +608,8 @@ const resolveRequestIdentity = async (
 
   return {
     userId: null,
+    userEmail: null,
+    isPaidUser: false,
     anonymousId,
     setCookieHeader,
   }
@@ -577,9 +637,9 @@ const withTimeout = async <T>(
   }
 }
 
-const getAuthenticatedUserId = async (
+const getAuthenticatedUser = async (
   request: Request,
-): Promise<string | null> => {
+): Promise<AuthenticatedUser | null> => {
   try {
     const session = await withTimeout(
       auth.api.getSession({
@@ -589,11 +649,41 @@ const getAuthenticatedUserId = async (
       'Auth session lookup timed out',
     )
 
-    return session?.user.id ?? null
+    const user = (
+      session as { user?: { id?: unknown; email?: unknown } } | null
+    )?.user
+
+    if (!user || typeof user.id !== 'string' || user.id.length === 0) {
+      return null
+    }
+
+    return {
+      id: user.id,
+      email: typeof user.email === 'string' ? user.email : null,
+    }
   } catch (error) {
     console.warn('Auth session lookup failed; continuing as anonymous', error)
     return null
   }
+}
+
+const handleGetMyEntitlementsRequest = async (
+  request: Request,
+  env: Env,
+): Promise<Response> => {
+  const identity = await resolveRequestIdentity(request, env, {
+    ensureAnonymousId: false,
+    migrateAnonymousToUser: true,
+  })
+
+  return withSetCookieHeader(
+    respondJson({
+      isAuthenticated: Boolean(identity.userId),
+      isPaid: identity.isPaidUser,
+      multiFileUploadEnabled: Boolean(identity.userId && identity.isPaidUser),
+    }),
+    identity.setCookieHeader,
+  )
 }
 
 const handleCopyTrackingRequest = async (
@@ -973,6 +1063,7 @@ const handleUploadRequest = async (
   }
 
   const formData = await request.formData()
+  const batchSize = parseBatchSize(formData.get(PAID_MULTI_UPLOAD_BATCH_FIELD))
   const fileEntry = formData.get('file')
 
   if (!(fileEntry instanceof File)) {
@@ -1055,7 +1146,29 @@ const handleUploadRequest = async (
   }
 
   const ownerUserId = identity.userId
+  const ownerUserEmail = identity.userEmail
   const ownerAnonymousId = ownerUserId ? null : identity.anonymousId
+
+  if (batchSize > 1) {
+    if (!ownerUserId) {
+      return respondWithIdentity(
+        {
+          error:
+            'Multi-file upload is available for paid accounts. Sign in and upgrade to continue.',
+        },
+        403,
+      )
+    }
+
+    if (!identity.isPaidUser) {
+      return respondWithIdentity(
+        {
+          error: `Multi-file upload requires a paid plan. ${ownerUserEmail ? `Current account: ${ownerUserEmail}. ` : ''}Upgrade to continue.`,
+        },
+        403,
+      )
+    }
+  }
 
   if (!ownerUserId) {
     if (!ownerAnonymousId) {
@@ -1262,6 +1375,24 @@ export default {
         return respondJson(
           {
             error: 'Failed to load uploads unexpectedly. Please retry.',
+          },
+          500,
+        )
+      }
+    }
+
+    if (url.pathname === '/api/me/entitlements') {
+      if (request.method !== 'GET') {
+        return methodNotAllowed('GET')
+      }
+
+      try {
+        return await handleGetMyEntitlementsRequest(request, env)
+      } catch (error) {
+        console.error('Unhandled entitlements request error', error)
+        return respondJson(
+          {
+            error: 'Failed to load entitlements unexpectedly. Please retry.',
           },
           500,
         )
