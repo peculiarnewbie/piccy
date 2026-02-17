@@ -1,0 +1,43 @@
+{
+  "name": "piccy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "start": "node .output/server/index.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint",
+    "format": "prettier",
+    "check": "prettier --write . && eslint --fix",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push --config drizzle.push.config.ts"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/router-plugin": "^1.133.21",
+    "@tanstack/solid-router": "^1.133.20",
+    "@tanstack/solid-router-devtools": "^1.133.20",
+    "@tanstack/solid-router-ssr-query": "^1.132.25",
+    "@tanstack/solid-start": "^1.133.20",
+    "better-auth": "^1.4.12",
+    "drizzle-orm": "^1.0.0-beta.15-859cf75",
+    "lucide-solid": "^0.544.0",
+    "solid-js": "^1.9.9",
+    "tailwindcss": "^4.1.18",
+    "vite-tsconfig-paths": "^5.1.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.13.7",
+    "@tanstack/devtools-vite": "^0.3.11",
+    "@tanstack/eslint-config": "^0.3.2",
+    "drizzle-kit": "^1.0.0-beta.15-859cf75",
+    "prettier": "^3.5.3",
+    "typescript": "^5.7.2",
+    "vite": "npm:rolldown-vite@latest",
+    "vite-plugin-lucide-preprocess": "^1.4.6",
+    "vite-plugin-solid": "^2.11.10",
+    "wrangler": "^4.49.1"
+  }
+}
