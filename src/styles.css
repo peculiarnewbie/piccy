@@ -1,15 +1,147 @@
 @import "tailwindcss";
 
+@import url("https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;800&family=DM+Mono:wght@400;500&display=swap");
+
+@theme {
+  /* Midnight Coral palette */
+  --color-bg: #0f0f14;
+  --color-surface: #18181f;
+  --color-surface-2: #222230;
+  --color-border: #2e2e3e;
+  --color-border-heavy: #3e3e52;
+  --color-text: #eae8f0;
+  --color-text-dim: #7e7a92;
+  --color-accent: #ff6b6b;
+  --color-accent-dim: rgba(255, 107, 107, 0.1);
+  --color-secondary: #ffd166;
+  --color-mint: #6bffb8;
+
+  /* Fonts */
+  --font-display: 'Anybody', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+  /* Animation */
+  --animate-slide-up: slide-up 0.45s ease both;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 body {
-  @apply m-0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
+  font-family: var(--font-mono);
+}
+
+/* ---- Reusable component classes for Phase 3 ---- */
+
+@layer components {
+  .btn {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 18px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 2px solid;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-accent {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+  }
+
+  .btn-accent:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+  }
+
+  .btn-outline {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-color: var(--color-border-heavy);
+  }
+
+  .btn-outline:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-text-dim);
+  }
+
+  .tab {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 100px;
+    color: var(--color-text-dim);
+    background: none;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab:hover {
+    color: var(--color-text);
+  }
+
+  .tab-active {
+    color: var(--color-text);
+    background: var(--color-surface-2);
+    border-color: var(--color-border-heavy);
+  }
+
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-heavy);
+    color: var(--color-text-dim);
+  }
+
+  .format-chip {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 10px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-heavy);
+    border-radius: 100px;
+    color: var(--color-text-dim);
+  }
+
+  .panel-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+  }
 }

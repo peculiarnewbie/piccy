@@ -9,7 +9,7 @@ export default function BetterAuthHeader() {
     <Show
       when={!session().isPending}
       fallback={
-        <div class="h-8 w-8 bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+        <div class="h-8 w-8 rounded-full bg-surface-2 animate-pulse" />
       }
     >
       <Show
@@ -17,7 +17,7 @@ export default function BetterAuthHeader() {
         fallback={
           <Link
             to="/demo/better-auth"
-            class="h-9 px-4 text-sm font-medium bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-50 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors inline-flex items-center"
+            class="btn btn-outline no-underline"
           >
             Sign in
           </Link>
@@ -28,20 +28,26 @@ export default function BetterAuthHeader() {
             <Show
               when={user().image}
               fallback={
-                <div class="h-8 w-8 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                  <span class="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                <div class="h-8 w-8 rounded-full bg-surface-2 border border-border-heavy flex items-center justify-center">
+                  <span class="text-xs font-semibold text-text-dim">
                     {user().name?.charAt(0).toUpperCase() || 'U'}
                   </span>
                 </div>
               }
             >
-              {(image) => <img src={image()} alt="" class="h-8 w-8" />}
+              {(image) => (
+                <img
+                  src={image()}
+                  alt=""
+                  class="h-8 w-8 rounded-full border border-border-heavy"
+                />
+              )}
             </Show>
             <button
               onClick={() => {
                 void authClient.signOut()
               }}
-              class="flex-1 h-9 px-4 text-sm font-medium bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-50 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              class="btn btn-outline"
             >
               Sign out
             </button>

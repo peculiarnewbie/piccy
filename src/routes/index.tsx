@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/solid-router'
-import { Show, createSignal, onCleanup, onMount } from 'solid-js'
+import { For, Show, createSignal, onCleanup, onMount } from 'solid-js'
 
 export const Route = createFileRoute('/')({ component: App })
 
@@ -110,7 +110,6 @@ function App() {
   const [uploadResult, setUploadResult] = createSignal<UploadPayload | null>(
     null,
   )
-  const [previewUrl, setPreviewUrl] = createSignal<string | null>(null)
   const [previewName, setPreviewName] = createSignal('')
   const [copyStatus, setCopyStatus] = createSignal('')
 
@@ -139,16 +138,6 @@ function App() {
     }
   }
 
-  const setNextPreview = (file: File) => {
-    const currentPreviewUrl = previewUrl()
-    if (currentPreviewUrl) {
-      URL.revokeObjectURL(currentPreviewUrl)
-    }
-
-    setPreviewUrl(URL.createObjectURL(file))
-    setPreviewName(file.name || 'clipboard-image')
-  }
-
   const startUpload = async (file: File) => {
     setUploadError('')
     setUploadResult(null)
@@ -164,7 +153,7 @@ function App() {
       return
     }
 
-    setNextPreview(file)
+    setPreviewName(file.name || 'clipboard-image')
     setProgress(0)
     setIsUploading(true)
 
@@ -241,154 +230,232 @@ function App() {
   })
 
   onCleanup(() => {
-    const currentPreviewUrl = previewUrl()
-    if (currentPreviewUrl) {
-      URL.revokeObjectURL(currentPreviewUrl)
-    }
-
     if (copyStatusTimer !== undefined) {
       window.clearTimeout(copyStatusTimer)
     }
   })
 
+  const ssCardHeights = [60, 82, 55, 72, 65, 90, 58, 76, 68, 84, 62, 74]
+
   return (
-    <main class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 md:px-8 md:py-12 text-slate-100">
-      <section class="mx-auto max-w-5xl space-y-6">
-        <div class="space-y-3 text-center">
-          <p class="text-xs uppercase tracking-[0.28em] text-cyan-300">
-            Piccy Upload
-          </p>
-          <h1 class="text-3xl font-semibold md:text-5xl">
-            Paste, drop, or click. Share instantly.
+    <div class="pt-[54px] min-h-screen flex flex-col">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        class="hidden"
+        onChange={onInputFileSelect}
+      />
+
+      {/* Band 1: Hero */}
+      <div
+        class="px-7 py-7 border-b-2 border-border flex items-end justify-between gap-6 flex-wrap bg-surface animate-slide-up"
+      >
+        <div>
+          <h1 class="text-[clamp(22px,3.5vw,30px)] font-[800] tracking-[-0.8px] mb-1 leading-[1.2]">
+            Grab, drop, share. <em class="italic text-accent">Repeat.</em>
           </h1>
-          <p class="mx-auto max-w-2xl text-sm text-slate-300 md:text-base">
-            Press Ctrl+V or Cmd+V anytime on this page to upload from your
-            clipboard. Anonymous uploads expire after 30 days.
+          <p class="font-mono text-sm text-text-dim">
+            A clipboard for your images. Click any to copy its link.
+          </p>
+        </div>
+        <div class="flex gap-4 shrink-0 max-md:hidden">
+          <div class="text-center px-4 py-2.5 bg-surface-2 border-2 border-border-heavy rounded-[14px]">
+            <div class="text-[22px] font-[800] text-secondary tracking-[-0.5px]">&lt;2s</div>
+            <div class="font-mono text-[10px] text-text-dim uppercase tracking-[1px]">Paste to link</div>
+          </div>
+          <div class="text-center px-4 py-2.5 bg-surface-2 border-2 border-border-heavy rounded-[14px]">
+            <div class="text-[22px] font-[800] text-secondary tracking-[-0.5px]">15MB</div>
+            <div class="font-mono text-[10px] text-text-dim uppercase tracking-[1px]">Max upload</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Band 2: Screenshot + Upload */}
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.3fr_1fr] min-h-0">
+        {/* Left: Screenshot panel */}
+        <div class="p-6 flex flex-col border-r-0 md:border-r-2 border-b-2 md:border-b-0 border-border bg-surface animate-slide-up [animation-delay:80ms]">
+          <div class="panel-label">How it works</div>
+          <div class="flex-1 min-h-[300px] bg-bg border-2 border-border-heavy rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+            {/* Faux browser chrome */}
+            <div class="h-[34px] bg-surface-2 border-b-2 border-border flex items-center px-3.5 gap-1.5">
+              <div class="w-[9px] h-[9px] rounded-full bg-accent" />
+              <div class="w-[9px] h-[9px] rounded-full bg-secondary" />
+              <div class="w-[9px] h-[9px] rounded-full bg-mint" />
+              <div class="ml-2.5 h-4 w-[140px] bg-bg border border-border rounded-full" />
+            </div>
+            {/* Faux masonry grid */}
+            <div class="p-3 grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2 h-[calc(100%-34px)] content-start">
+              <For each={ssCardHeights}>
+                {(height, i) => (
+                  <div
+                    class={`rounded-[10px] border-2 bg-surface-2 ${
+                      i() === 2
+                        ? 'opacity-100 border-accent bg-accent-dim relative'
+                        : 'opacity-40 border-border'
+                    } ${i() >= 6 ? 'max-md:hidden' : ''}`}
+                    style={{ height: `${height}px` }}
+                  >
+                    <Show when={i() === 2}>
+                      <span class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-display text-[9px] font-[800] tracking-[1px] text-accent">
+                        COPIED!
+                      </span>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+          <p class="font-mono text-[11px] text-text-dim text-center mt-3 italic">
+            Replace with a real GIF showing click-to-copy in action
           </p>
         </div>
 
-        <div
-          class={`rounded-2xl border border-dashed p-7 transition-all md:p-10 ${
-            dragging()
-              ? 'border-cyan-300 bg-cyan-300/10'
-              : 'border-slate-600 bg-slate-900/70'
-          }`}
-          onDragOver={(event) => {
-            event.preventDefault()
-            setDragging(true)
-          }}
-          onDragLeave={(event) => {
-            event.preventDefault()
-            const nextTarget = event.relatedTarget
-            if (
-              nextTarget instanceof Node &&
-              event.currentTarget.contains(nextTarget)
-            ) {
-              return
-            }
-            setDragging(false)
-          }}
-          onDrop={onDrop}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp"
-            class="hidden"
-            onChange={onInputFileSelect}
-          />
+        {/* Right: Upload panel */}
+        <div class="p-6 flex flex-col animate-slide-up [animation-delay:160ms]">
+          <div class="panel-label">Drop zone</div>
 
-          <div class="flex flex-col items-center gap-4 text-center">
-            <button
-              type="button"
-              class="rounded-lg bg-cyan-500 px-6 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => fileInputRef?.click()}
-              disabled={isUploading()}
-            >
-              {isUploading() ? 'Uploading...' : 'Choose image'}
-            </button>
-            <p class="text-sm text-slate-300">
-              or drag-and-drop an image file here
-            </p>
-            <p class="text-xs text-slate-400">
-              PNG, JPEG, GIF, WEBP up to 15 MB
-            </p>
-          </div>
-        </div>
-
-        <Show when={isUploading()}>
-          <div class="rounded-xl border border-slate-700 bg-slate-900/80 p-4">
-            <div class="mb-2 flex items-center justify-between text-xs text-slate-300">
-              <span>Uploading {previewName()}</span>
-              <span>{progress()}%</span>
+          {/* Drop target */}
+          <div
+            class={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-200 ${
+              dragging()
+                ? 'border-accent bg-accent-dim'
+                : 'border-border-heavy bg-surface hover:border-accent hover:bg-accent-dim'
+            }`}
+            onDragOver={(event) => {
+              event.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault()
+              const nextTarget = event.relatedTarget
+              if (
+                nextTarget instanceof Node &&
+                event.currentTarget.contains(nextTarget)
+              ) {
+                return
+              }
+              setDragging(false)
+            }}
+            onDrop={onDrop}
+            onClick={() => fileInputRef?.click()}
+          >
+            {/* Upload icon */}
+            <div class="w-12 h-12 rounded-full bg-accent-dim border-2 border-accent/25 flex items-center justify-center mb-4">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="w-5 h-5 stroke-accent"
+                stroke-width="2.5"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
             </div>
-            <div class="h-2 overflow-hidden rounded-full bg-slate-700">
-              <div
-                class="h-full bg-cyan-400 transition-all"
-                style={{ width: `${progress()}%` }}
-              />
+            <p class="text-base font-[800] mb-1">
+              {isUploading() ? 'Uploading...' : 'Drop image or click to browse'}
+            </p>
+            <p class="font-mono text-[13px] text-text-dim mb-5">
+              <span class="kbd">Ctrl</span> + <span class="kbd">V</span> to paste from clipboard
+            </p>
+            <div class="flex gap-1.5">
+              <span class="format-chip">PNG</span>
+              <span class="format-chip">JPEG</span>
+              <span class="format-chip">GIF</span>
+              <span class="format-chip">WEBP</span>
             </div>
           </div>
-        </Show>
 
-        <Show when={uploadError()}>
-          <div class="rounded-xl border border-red-500/50 bg-red-950/40 p-4 text-sm text-red-200">
-            {uploadError()}
-          </div>
-        </Show>
-
-        <Show when={copyStatus()}>
-          <div class="rounded-xl border border-emerald-500/50 bg-emerald-950/40 p-3 text-sm text-emerald-200">
-            {copyStatus()}
-          </div>
-        </Show>
-
-        <Show when={previewUrl()}>
-          {(currentPreviewUrl) => (
-            <figure class="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/80">
-              <img
-                src={currentPreviewUrl()}
-                alt="Upload preview"
-                class="max-h-[30rem] w-full object-contain"
-              />
-            </figure>
-          )}
-        </Show>
-
-        <Show when={uploadResult()}>
-          {(result) => (
-            <div class="rounded-2xl border border-slate-700 bg-slate-900/80 p-5 md:p-6">
-              <p class="mb-4 text-xs uppercase tracking-[0.2em] text-cyan-300">
-                Share Output
-              </p>
-              <div class="space-y-4">
-                <OutputRow
-                  label="Direct URL"
-                  value={result().directUrl}
-                  onCopy={() => {
-                    void copyValue(result().directUrl, 'Direct URL copied')
-                  }}
-                />
-                <OutputRow
-                  label="Markdown"
-                  value={result().markdown}
-                  onCopy={() => {
-                    void copyValue(result().markdown, 'Markdown copied')
-                  }}
-                />
-                <OutputRow
-                  label="BBCode"
-                  value={result().bbcode}
-                  onCopy={() => {
-                    void copyValue(result().bbcode, 'BBCode copied')
-                  }}
+          {/* Upload progress */}
+          <Show when={isUploading()}>
+            <div class="mt-3 p-3 border-2 border-border rounded-xl bg-surface">
+              <div class="flex items-center justify-between text-[11px] font-mono text-text-dim mb-2">
+                <span>{previewName()}</span>
+                <span>{progress()}%</span>
+              </div>
+              <div class="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                <div
+                  class="h-full bg-accent rounded-full transition-all"
+                  style={{ width: `${progress()}%` }}
                 />
               </div>
             </div>
-          )}
-        </Show>
-      </section>
-    </main>
+          </Show>
+
+          {/* Error */}
+          <Show when={uploadError()}>
+            <div class="mt-3 p-3 border-2 border-accent/40 rounded-xl bg-accent-dim text-sm text-accent">
+              {uploadError()}
+            </div>
+          </Show>
+
+          {/* Copy status toast */}
+          <Show when={copyStatus()}>
+            <div class="mt-3 p-3 border-2 border-mint/30 rounded-xl bg-mint/5 text-sm text-mint">
+              {copyStatus()}
+            </div>
+          </Show>
+
+          {/* Share output */}
+          <Show when={uploadResult()}>
+            {(result) => (
+              <div class="mt-3 p-4 border-2 border-border rounded-xl bg-surface">
+                <p class="font-mono text-[10px] text-text-dim uppercase tracking-[1.5px] mb-3">Share Output</p>
+                <div class="flex flex-col gap-2">
+                  <OutputRow
+                    label="URL"
+                    value={result().directUrl}
+                    onCopy={() => { void copyValue(result().directUrl, 'Direct URL copied') }}
+                  />
+                  <OutputRow
+                    label="MD"
+                    value={result().markdown}
+                    onCopy={() => { void copyValue(result().markdown, 'Markdown copied') }}
+                  />
+                  <OutputRow
+                    label="BB"
+                    value={result().bbcode}
+                    onCopy={() => { void copyValue(result().bbcode, 'BBCode copied') }}
+                  />
+                </div>
+              </div>
+            )}
+          </Show>
+
+          {/* Feature checklist */}
+          <div class="mt-4 flex flex-col gap-2">
+            <div class="flex items-center gap-2.5 text-[13px] font-semibold text-text-dim p-2.5 px-3.5 bg-surface border-2 border-border rounded-xl transition-all hover:border-border-heavy">
+              <div class="w-[22px] h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" class="w-[11px] h-[11px] stroke-accent stroke-[3]">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              One click = link copied to clipboard
+            </div>
+            <div class="flex items-center gap-2.5 text-[13px] font-semibold text-text-dim p-2.5 px-3.5 bg-surface border-2 border-border rounded-xl transition-all hover:border-border-heavy">
+              <div class="w-[22px] h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" class="w-[11px] h-[11px] stroke-accent stroke-[3]">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              URL, Markdown, and BBCode formats
+            </div>
+            <div class="flex items-center gap-2.5 text-[13px] font-semibold text-text-dim p-2.5 px-3.5 bg-surface border-2 border-border rounded-xl transition-all hover:border-border-heavy">
+              <div class="w-[22px] h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" class="w-[11px] h-[11px] stroke-accent stroke-[3]">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              Sign in to keep a permanent collection
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -398,20 +465,18 @@ function OutputRow(props: {
   onCopy: () => void
 }) {
   return (
-    <div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3">
-      <div class="mb-2 flex items-center justify-between gap-3">
-        <p class="text-sm font-medium text-slate-200">{props.label}</p>
-        <button
-          type="button"
-          class="rounded-md border border-slate-500 px-3 py-1 text-xs font-semibold text-slate-100 transition hover:border-cyan-300 hover:text-cyan-200"
-          onClick={props.onCopy}
-        >
-          Copy
-        </button>
-      </div>
-      <p class="break-all rounded-md bg-slate-900/90 px-3 py-2 font-mono text-xs text-slate-300">
+    <div class="flex items-center gap-2 p-2 rounded-lg bg-bg border border-border">
+      <span class="format-chip shrink-0">{props.label}</span>
+      <p class="flex-1 font-mono text-[11px] text-text-dim truncate">
         {props.value}
       </p>
+      <button
+        type="button"
+        class="btn btn-outline text-[11px] py-0.5 px-2.5 border-border-heavy"
+        onClick={props.onCopy}
+      >
+        Copy
+      </button>
     </div>
   )
 }
