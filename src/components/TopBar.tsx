@@ -2,17 +2,16 @@ import { Link } from '@tanstack/solid-router'
 import { Show } from 'solid-js'
 import { authClient } from '../lib/auth-client'
 
-export default function TopBar(props: {
-  onUploadClick?: () => void
-}) {
+export default function TopBar(props: { onUploadClick?: () => void }) {
   const session = authClient.useSession()
 
   return (
-    <nav
-      class="fixed top-0 left-0 right-0 h-[54px] flex items-center justify-between px-5 bg-surface border-b-2 border-border z-50"
-    >
+    <nav class="fixed top-0 left-0 right-0 h-[54px] flex items-center justify-between px-5 bg-surface border-b-2 border-border z-50">
       {/* Left: Logo */}
-      <Link to="/" class="font-display font-[800] text-[21px] tracking-[-0.8px] lowercase no-underline text-text">
+      <Link
+        to="/"
+        class="font-display font-[800] text-[21px] tracking-[-0.8px] lowercase no-underline text-text"
+      >
         piccy<span class="text-accent italic">!</span>
       </Link>
 
@@ -26,9 +25,14 @@ export default function TopBar(props: {
         >
           Upload
         </Link>
-        <button class="tab" disabled>
+        <Link
+          to="/library"
+          class="tab"
+          activeProps={{ class: 'tab tab-active' }}
+          activeOptions={{ exact: true }}
+        >
           Library
-        </button>
+        </Link>
       </div>
 
       {/* Right: Actions */}
@@ -63,7 +67,9 @@ export default function TopBar(props: {
                   )}
                 </Show>
                 <button
-                  onClick={() => { void authClient.signOut() }}
+                  onClick={() => {
+                    void authClient.signOut()
+                  }}
                   class="btn btn-outline text-[12px] py-1 px-3"
                 >
                   Sign out
@@ -74,10 +80,7 @@ export default function TopBar(props: {
         </Show>
 
         <Show when={props.onUploadClick}>
-          <button
-            class="btn btn-accent"
-            onClick={props.onUploadClick}
-          >
+          <button class="btn btn-accent" onClick={props.onUploadClick}>
             Upload
           </button>
         </Show>

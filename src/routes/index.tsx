@@ -1,7 +1,12 @@
-import { createFileRoute } from '@tanstack/solid-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/solid-router'
 import { For, Show, createSignal, onCleanup, onMount } from 'solid-js'
+import { authClient } from '../lib/auth-client'
 
-export const Route = createFileRoute('/')({ component: App })
+export const Route = createFileRoute('/')({ component: HomeRoute })
+
+function HomeRoute() {
+  return <PiccyWorkspace view="home" />
+}
 
 type UploadPayload = {
   id: string
@@ -21,6 +26,7 @@ type LibraryItem = UploadPayload & {
   height: number | null
   copyCount: number
   createdAt: string
+  isSeeded?: boolean
 }
 
 type LibraryResponse = {
@@ -46,10 +52,117 @@ type CopyTrackingInput = {
 const MAX_SIZE_BYTES = 15 * 1024 * 1024
 const UPLOAD_REQUEST_TIMEOUT_MS = 90_000
 const UPLOAD_MAX_ATTEMPTS = 2
+const FIRST_VISIT_LIBRARY_STORAGE_KEY = 'piccy_first_visit_library_v1'
+const FIRST_UPLOAD_REDIRECT_STORAGE_KEY = 'piccy_first_upload_redirect_v1'
+
+const FIRST_VISIT_LIBRARY_ITEMS: Array<LibraryItem> = [
+  {
+    id: '01KHPKE4CAKTYFKFY57S6DD9BZ',
+    directUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif',
+    markdown:
+      '![image](https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif)',
+    bbcode:
+      '[img]https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif[/img]',
+    thumbUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif',
+    mimeType: 'image/gif',
+    sizeBytes: 0,
+    width: null,
+    height: null,
+    copyCount: 1,
+    createdAt: '2026-02-18T00:00:04.000Z',
+    isSeeded: true,
+  },
+  {
+    id: '01KHPKBK6Q6QMH60M7MTKM99ZF',
+    directUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png',
+    markdown:
+      '![image](https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png)',
+    bbcode:
+      '[img]https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png[/img]',
+    thumbUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png',
+    mimeType: 'image/png',
+    sizeBytes: 0,
+    width: null,
+    height: null,
+    copyCount: 1,
+    createdAt: '2026-02-18T00:00:03.000Z',
+    isSeeded: true,
+  },
+  {
+    id: '01KHPKA7WJ9N6V41MEXNDE99EH',
+    directUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png',
+    markdown:
+      '![image](https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png)',
+    bbcode:
+      '[img]https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png[/img]',
+    thumbUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png',
+    mimeType: 'image/png',
+    sizeBytes: 0,
+    width: null,
+    height: null,
+    copyCount: 1,
+    createdAt: '2026-02-18T00:00:02.000Z',
+    isSeeded: true,
+  },
+  {
+    id: '01KHPK6XKCFATR42RJFDE62QSY',
+    directUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif',
+    markdown:
+      '![image](https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif)',
+    bbcode:
+      '[img]https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif[/img]',
+    thumbUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif',
+    mimeType: 'image/gif',
+    sizeBytes: 0,
+    width: null,
+    height: null,
+    copyCount: 2,
+    createdAt: '2026-02-18T00:00:01.000Z',
+    isSeeded: true,
+  },
+]
 
 const LIBRARY_SKELETON_HEIGHTS = [
   74, 122, 98, 146, 84, 136, 112, 158, 92, 128, 104, 150,
 ]
+
+const shouldShowFirstVisitDefaults = (): boolean => {
+  try {
+    return window.localStorage.getItem(FIRST_VISIT_LIBRARY_STORAGE_KEY) !== '1'
+  } catch {
+    return true
+  }
+}
+
+const markFirstVisitDefaultsSeen = (): void => {
+  try {
+    window.localStorage.setItem(FIRST_VISIT_LIBRARY_STORAGE_KEY, '1')
+  } catch {}
+}
+
+const shouldRedirectAfterFirstUpload = (): boolean => {
+  try {
+    return (
+      window.localStorage.getItem(FIRST_UPLOAD_REDIRECT_STORAGE_KEY) !== '1'
+    )
+  } catch {
+    return false
+  }
+}
+
+const markFirstUploadRedirectSeen = (): void => {
+  try {
+    window.localStorage.setItem(FIRST_UPLOAD_REDIRECT_STORAGE_KEY, '1')
+  } catch {}
+}
 
 class UploadRequestError extends Error {
   readonly retryable: boolean
@@ -331,7 +444,11 @@ const isTextInputTarget = (target: EventTarget | null): boolean => {
   return target.isContentEditable
 }
 
-function App() {
+export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
+  const session = authClient.useSession()
+  const navigate = useNavigate()
+  const isLibraryRoute = () => props.view === 'library'
+
   const [dragging, setDragging] = createSignal(false)
   const [isUploading, setIsUploading] = createSignal(false)
   const [progress, setProgress] = createSignal(0)
@@ -412,7 +529,7 @@ function App() {
       await copyToClipboard(value)
       pushToast('success', label)
 
-      if (tracking) {
+      if (tracking && session().data?.user) {
         void trackCopyEvent(tracking.uploadId, tracking.format, tracking.source)
       }
     } catch {
@@ -425,11 +542,19 @@ function App() {
     format: CopyFormat,
   ): Promise<void> => {
     setCardFormat(item.id, format)
-    await copyValue(getFormatValue(item, format), getFormatLabel(format), {
-      uploadId: item.id,
-      format,
-      source: 'library',
-    })
+    const tracking = item.isSeeded
+      ? undefined
+      : {
+          uploadId: item.id,
+          format,
+          source: 'library' as const,
+        }
+
+    await copyValue(
+      getFormatValue(item, format),
+      getFormatLabel(format),
+      tracking,
+    )
     markCopiedCard(item.id)
   }
 
@@ -452,6 +577,28 @@ function App() {
 
     try {
       const payload = await fetchLibraryPage(cursor)
+
+      if (!append) {
+        const shouldApplyFirstVisitDefaults =
+          payload.items.length === 0 && shouldShowFirstVisitDefaults()
+
+        markFirstVisitDefaultsSeen()
+
+        if (shouldApplyFirstVisitDefaults) {
+          setLibraryItems(FIRST_VISIT_LIBRARY_ITEMS)
+          setLibraryNextCursor(null)
+          setCardFormats((current) => {
+            const next = { ...current }
+            for (const item of FIRST_VISIT_LIBRARY_ITEMS) {
+              if (!next[item.id]) {
+                next[item.id] = 'direct'
+              }
+            }
+            return next
+          })
+          return
+        }
+      }
 
       setLibraryItems((current) =>
         append ? [...current, ...payload.items] : payload.items,
@@ -514,6 +661,21 @@ function App() {
     }
   }
 
+  const navigateToLibrary = () => {
+    const documentWithTransition = document as Document & {
+      startViewTransition?: (update: () => void) => void
+    }
+
+    if (typeof documentWithTransition.startViewTransition === 'function') {
+      documentWithTransition.startViewTransition(() => {
+        void navigate({ to: '/library' })
+      })
+      return
+    }
+
+    void navigate({ to: '/library' })
+  }
+
   const startUpload = async (file: File) => {
     if (isUploading()) {
       pushToast('info', 'Upload in progress. Please wait for it to finish.')
@@ -536,6 +698,8 @@ function App() {
     setPreviewName(file.name || 'clipboard-image')
     setProgress(0)
     setIsUploading(true)
+    const shouldAutoRouteToLibrary =
+      !isLibraryRoute() && shouldRedirectAfterFirstUpload()
 
     try {
       const payload = await uploadWithRetry(file, setProgress)
@@ -546,6 +710,11 @@ function App() {
         source: 'uploader',
       })
       await reloadLibrary()
+
+      if (shouldAutoRouteToLibrary) {
+        markFirstUploadRedirectSeen()
+        navigateToLibrary()
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Upload failed unexpectedly.'
@@ -632,6 +801,22 @@ function App() {
       'Delete this upload? It can be recovered only until cleanup runs.',
     )
     if (!confirmed) {
+      return
+    }
+
+    if (item.isSeeded) {
+      setLibraryItems((current) =>
+        current.filter((entry) => entry.id !== uploadId),
+      )
+      cardRefs.delete(uploadId)
+
+      if (snapshot.length <= 1) {
+        setFocusedIndex(-1)
+      } else if (focusedIndex() >= snapshot.length - 1) {
+        setFocusedIndex(snapshot.length - 2)
+      }
+
+      pushToast('info', 'Sample removed')
       return
     }
 
@@ -775,8 +960,266 @@ function App() {
     }
   })
 
+  if (isLibraryRoute()) {
+    return (
+      <div class="pt-[54px] min-h-screen px-5 py-6 md:px-7 md:py-7 animate-route-enter">
+        <div class="mx-auto max-w-[1280px] h-[calc(100vh-110px)] min-h-[440px] flex flex-col gap-5">
+          <div class="flex items-end justify-between gap-5 flex-wrap border-b-2 border-border pb-4">
+            <div>
+              <h1 class="text-[clamp(24px,3.5vw,34px)] font-[800] tracking-[-0.9px] leading-[1.15]">
+                Library
+              </h1>
+              <p class="font-mono text-[12px] text-text-dim mt-1.5">
+                Click an image to copy instantly. Use URL, MD, or BB on each
+                card.
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <div class="px-3 py-1.5 rounded-full border border-border-heavy bg-surface-2 font-mono text-[11px] uppercase tracking-[1px] text-text-dim">
+                Guests: 50 library items
+              </div>
+              <Link to="/" class="btn btn-accent no-underline">
+                Upload image
+              </Link>
+            </div>
+          </div>
+
+          <div class="flex-1 min-h-0 rounded-2xl border-2 border-border-heavy bg-surface shadow-[0_10px_40px_rgba(0,0,0,0.3)] overflow-hidden">
+            <div
+              ref={libraryScrollRef}
+              class="h-full p-3 overflow-y-auto"
+              onScroll={maybeLoadNextPageFromScroll}
+            >
+              <Show
+                when={!libraryLoadingInitial()}
+                fallback={
+                  <div class="columns-2 md:columns-3 xl:columns-4 gap-2 [column-fill:_balance]">
+                    <For each={LIBRARY_SKELETON_HEIGHTS}>
+                      {(height) => (
+                        <div
+                          class="mb-2 break-inside-avoid rounded-[10px] border-2 border-border bg-surface-2/80 animate-pulse"
+                          style={{ height: `${height}px` }}
+                        />
+                      )}
+                    </For>
+                  </div>
+                }
+              >
+                <Show
+                  when={!libraryError()}
+                  fallback={
+                    <div class="h-full flex items-center justify-center text-center px-6">
+                      <div>
+                        <p class="text-sm font-semibold text-accent mb-2">
+                          {libraryError()}
+                        </p>
+                        <button
+                          type="button"
+                          class="btn btn-outline text-[12px] py-1.5 px-3"
+                          onClick={() => {
+                            void reloadLibrary()
+                          }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </div>
+                  }
+                >
+                  <Show
+                    when={libraryItems().length > 0}
+                    fallback={
+                      <div class="h-full flex items-center justify-center text-center px-6">
+                        <div>
+                          <p class="text-base font-[800] mb-1">
+                            No uploads yet
+                          </p>
+                          <p class="font-mono text-[12px] text-text-dim">
+                            Upload your first image on the upload screen.
+                          </p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <div class="columns-2 md:columns-3 xl:columns-4 gap-2 [column-fill:_balance]">
+                      <For each={libraryItems()}>
+                        {(item, index) => {
+                          const isFocused = () => focusedIndex() === index()
+                          const isCopied = () => copiedCardId() === item.id
+                          const isDeleting = () =>
+                            Boolean(deletingById()[item.id])
+
+                          return (
+                            <div
+                              ref={(element) => {
+                                cardRefs.set(item.id, element)
+                              }}
+                              role="button"
+                              tabindex="0"
+                              class={`group relative mb-2 break-inside-avoid overflow-hidden rounded-[10px] border-2 transition-all outline-none ${
+                                isCopied()
+                                  ? 'border-mint ring-2 ring-mint/40'
+                                  : isFocused()
+                                    ? 'border-accent ring-2 ring-accent/35'
+                                    : 'border-border hover:border-border-heavy'
+                              } ${isDeleting() ? 'opacity-60' : ''}`}
+                              onFocus={() => {
+                                setFocusedIndex(index())
+                              }}
+                              onClick={() => {
+                                if (isDeleting()) {
+                                  return
+                                }
+
+                                void copyLibraryItem(
+                                  item,
+                                  getCardFormat(item.id),
+                                )
+                              }}
+                              onKeyDown={(event) => {
+                                if (
+                                  event.key === 'Enter' ||
+                                  event.key === ' '
+                                ) {
+                                  event.preventDefault()
+                                  if (isDeleting()) {
+                                    return
+                                  }
+
+                                  void copyLibraryItem(
+                                    item,
+                                    getCardFormat(item.id),
+                                  )
+                                }
+                              }}
+                            >
+                              <img
+                                src={item.thumbUrl}
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                class="block w-full h-auto bg-surface-2"
+                              />
+
+                              <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 to-transparent opacity-65 group-hover:opacity-90 transition-opacity" />
+
+                              <Show when={item.copyCount > 0}>
+                                <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim">
+                                  {item.copyCount} copies
+                                </div>
+                              </Show>
+
+                              <div class="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim uppercase">
+                                {item.mimeType.replace('image/', '')}
+                              </div>
+
+                              <div class="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                                <div class="flex items-center gap-1 pointer-events-auto">
+                                  <FormatButton
+                                    label="URL"
+                                    active={getCardFormat(item.id) === 'direct'}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      if (isDeleting()) {
+                                        return
+                                      }
+
+                                      void copyLibraryItem(item, 'direct')
+                                    }}
+                                  />
+                                  <FormatButton
+                                    label="MD"
+                                    active={
+                                      getCardFormat(item.id) === 'markdown'
+                                    }
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      if (isDeleting()) {
+                                        return
+                                      }
+
+                                      void copyLibraryItem(item, 'markdown')
+                                    }}
+                                  />
+                                  <FormatButton
+                                    label="BB"
+                                    active={getCardFormat(item.id) === 'bbcode'}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      if (isDeleting()) {
+                                        return
+                                      }
+
+                                      void copyLibraryItem(item, 'bbcode')
+                                    }}
+                                  />
+                                </div>
+
+                                <Show when={!item.isSeeded}>
+                                  <button
+                                    type="button"
+                                    class="pointer-events-auto h-7 w-7 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-accent hover:border-accent transition-colors text-[13px] font-bold"
+                                    disabled={isDeleting()}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      void deleteUploadById(item.id)
+                                    }}
+                                    aria-label="Delete upload"
+                                  >
+                                    {isDeleting() ? '...' : 'x'}
+                                  </button>
+                                </Show>
+                              </div>
+                            </div>
+                          )
+                        }}
+                      </For>
+                    </div>
+
+                    <Show when={libraryLoadingMore()}>
+                      <div class="pt-2 pb-1 text-center font-mono text-[11px] text-text-dim">
+                        Loading more...
+                      </div>
+                    </Show>
+
+                    <Show
+                      when={!libraryNextCursor() && libraryItems().length > 0}
+                    >
+                      <div class="pt-2 pb-1 text-center font-mono text-[10px] uppercase tracking-[1.3px] text-text-dim">
+                        End of library
+                      </div>
+                    </Show>
+                  </Show>
+                </Show>
+              </Show>
+            </div>
+          </div>
+        </div>
+
+        <div class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(92vw,330px)] flex-col gap-2">
+          <For each={toasts()}>
+            {(toast) => (
+              <div
+                class={`pointer-events-auto rounded-xl border-2 px-3 py-2 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${
+                  toast.tone === 'success'
+                    ? 'border-mint/40 bg-mint/10 text-mint'
+                    : toast.tone === 'error'
+                      ? 'border-accent/45 bg-accent-dim text-accent'
+                      : 'border-border-heavy bg-surface text-text'
+                }`}
+              >
+                {toast.message}
+              </div>
+            )}
+          </For>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div class="pt-[54px] min-h-screen flex flex-col">
+    <div class="pt-[54px] min-h-screen flex flex-col animate-route-enter">
       <input
         ref={fileInputRef}
         type="file"
@@ -996,18 +1439,20 @@ function App() {
                                   />
                                 </div>
 
-                                <button
-                                  type="button"
-                                  class="pointer-events-auto h-7 w-7 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-accent hover:border-accent transition-colors text-[13px] font-bold"
-                                  disabled={isDeleting()}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    void deleteUploadById(item.id)
-                                  }}
-                                  aria-label="Delete upload"
-                                >
-                                  {isDeleting() ? '...' : 'x'}
-                                </button>
+                                <Show when={!item.isSeeded}>
+                                  <button
+                                    type="button"
+                                    class="pointer-events-auto h-7 w-7 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-accent hover:border-accent transition-colors text-[13px] font-bold"
+                                    disabled={isDeleting()}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      void deleteUploadById(item.id)
+                                    }}
+                                    aria-label="Delete upload"
+                                  >
+                                    {isDeleting() ? '...' : 'x'}
+                                  </button>
+                                </Show>
                               </div>
                             </div>
                           )
@@ -1202,7 +1647,7 @@ function App() {
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              Sign in to keep a permanent collection
+              Guests get 50 library slots; sign in for permanent storage
             </div>
           </div>
         </div>

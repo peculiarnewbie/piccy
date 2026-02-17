@@ -1,6 +1,6 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;800&family=DM+Mono:wght@400;500&display=swap');
 
-@import url("https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;800&family=DM+Mono:wght@400;500&display=swap");
+@import 'tailwindcss';
 
 @theme {
   /* Midnight Coral palette */
@@ -22,11 +22,29 @@
 
   /* Animation */
   --animate-slide-up: slide-up 0.45s ease both;
+  --animate-route-enter: route-enter 0.42s cubic-bezier(0.2, 0.72, 0.24, 1) both;
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 body {
@@ -36,6 +54,12 @@ body {
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-route-enter {
+    animation: none !important;
+  }
 }
 
 code {

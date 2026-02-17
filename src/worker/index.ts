@@ -613,6 +613,13 @@ const handleCopyTrackingRequest = async (
     )
   }
 
+  if (!identity.userId) {
+    return withSetCookieHeader(
+      new Response(null, { status: 204 }),
+      identity.setCookieHeader,
+    )
+  }
+
   let body: unknown
 
   try {
