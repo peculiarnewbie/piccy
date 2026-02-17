@@ -54,6 +54,7 @@ const UPLOAD_REQUEST_TIMEOUT_MS = 90_000
 const UPLOAD_MAX_ATTEMPTS = 2
 const FIRST_VISIT_LIBRARY_STORAGE_KEY = 'piccy_first_visit_library_v1'
 const FIRST_UPLOAD_REDIRECT_STORAGE_KEY = 'piccy_first_upload_redirect_v1'
+const RECENT_UPLOAD_HIGHLIGHT_STORAGE_KEY = 'piccy_recent_upload_highlight_v1'
 
 const FIRST_VISIT_LIBRARY_ITEMS: Array<LibraryItem> = [
   {
@@ -162,6 +163,29 @@ const markFirstUploadRedirectSeen = (): void => {
   try {
     window.localStorage.setItem(FIRST_UPLOAD_REDIRECT_STORAGE_KEY, '1')
   } catch {}
+}
+
+const saveRecentUploadHighlightId = (uploadId: string): void => {
+  try {
+    window.sessionStorage.setItem(RECENT_UPLOAD_HIGHLIGHT_STORAGE_KEY, uploadId)
+  } catch {}
+}
+
+const consumeRecentUploadHighlightId = (): string | null => {
+  try {
+    const uploadId = window.sessionStorage.getItem(
+      RECENT_UPLOAD_HIGHLIGHT_STORAGE_KEY,
+    )
+
+    if (!uploadId) {
+      return null
+    }
+
+    window.sessionStorage.removeItem(RECENT_UPLOAD_HIGHLIGHT_STORAGE_KEY)
+    return uploadId
+  } catch {
+    return null
+  }
 }
 
 class UploadRequestError extends Error {
@@ -474,6 +498,9 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
     Partial<Record<string, true>>
   >({})
   const [focusedIndex, setFocusedIndex] = createSignal(-1)
+  const [highlightedUploadId, setHighlightedUploadId] = createSignal<
+    string | null
+  >(null)
 
   const [toasts, setToasts] = createSignal<Array<ToastEntry>>([])
 
@@ -482,6 +509,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
   let fileInputRef: HTMLInputElement | undefined
   let libraryScrollRef: HTMLDivElement | undefined
   let copiedCardTimer: number | undefined
+  let highlightedUploadTimer: number | undefined
 
   const pushToast = (tone: ToastTone, message: string, ttlMs = 2200) => {
     const id =
@@ -507,6 +535,19 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
       setCopiedCardId(null)
       copiedCardTimer = undefined
     }, 720)
+  }
+
+  const markRecentlyUploadedCard = (uploadId: string) => {
+    setHighlightedUploadId(uploadId)
+
+    if (highlightedUploadTimer !== undefined) {
+      window.clearTimeout(highlightedUploadTimer)
+    }
+
+    highlightedUploadTimer = window.setTimeout(() => {
+      setHighlightedUploadId(null)
+      highlightedUploadTimer = undefined
+    }, 2800)
   }
 
   const getCardFormat = (uploadId: string): CopyFormat => {
@@ -579,10 +620,12 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
       const payload = await fetchLibraryPage(cursor)
 
       if (!append) {
+        if (payload.items.length > 0) {
+          markFirstVisitDefaultsSeen()
+        }
+
         const shouldApplyFirstVisitDefaults =
           payload.items.length === 0 && shouldShowFirstVisitDefaults()
-
-        markFirstVisitDefaultsSeen()
 
         if (shouldApplyFirstVisitDefaults) {
           setLibraryItems(FIRST_VISIT_LIBRARY_ITEMS)
@@ -703,6 +746,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
 
     try {
       const payload = await uploadWithRetry(file, setProgress)
+      markFirstVisitDefaultsSeen()
       setUploadResult(payload)
       await copyValue(payload.directUrl, 'Direct URL copied', {
         uploadId: payload.id,
@@ -713,6 +757,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
 
       if (shouldAutoRouteToLibrary) {
         markFirstUploadRedirectSeen()
+        saveRecentUploadHighlightId(payload.id)
         navigateToLibrary()
       }
     } catch (error) {
@@ -863,6 +908,13 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
   }
 
   onMount(() => {
+    if (isLibraryRoute()) {
+      const recentUploadId = consumeRecentUploadHighlightId()
+      if (recentUploadId) {
+        markRecentlyUploadedCard(recentUploadId)
+      }
+    }
+
     void reloadLibrary()
 
     const handlePaste = (event: ClipboardEvent) => {
@@ -958,11 +1010,15 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
     if (copiedCardTimer !== undefined) {
       window.clearTimeout(copiedCardTimer)
     }
+
+    if (highlightedUploadTimer !== undefined) {
+      window.clearTimeout(highlightedUploadTimer)
+    }
   })
 
   if (isLibraryRoute()) {
     return (
-      <div class="pt-[54px] min-h-screen px-5 py-6 md:px-7 md:py-7 animate-route-enter">
+      <div class="min-h-screen px-5 pt-[74px] pb-6 md:px-7 md:pt-[80px] md:pb-7 animate-route-enter">
         <div class="mx-auto max-w-[1280px] h-[calc(100vh-110px)] min-h-[440px] flex flex-col gap-5">
           <div class="flex items-end justify-between gap-5 flex-wrap border-b-2 border-border pb-4">
             <div>
@@ -1047,6 +1103,8 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                         {(item, index) => {
                           const isFocused = () => focusedIndex() === index()
                           const isCopied = () => copiedCardId() === item.id
+                          const isRecentlyUploaded = () =>
+                            highlightedUploadId() === item.id
                           const isDeleting = () =>
                             Boolean(deletingById()[item.id])
 
@@ -1060,9 +1118,11 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                               class={`group relative mb-2 break-inside-avoid overflow-hidden rounded-[10px] border-2 transition-all outline-none ${
                                 isCopied()
                                   ? 'border-mint ring-2 ring-mint/40'
-                                  : isFocused()
-                                    ? 'border-accent ring-2 ring-accent/35'
-                                    : 'border-border hover:border-border-heavy'
+                                  : isRecentlyUploaded()
+                                    ? 'border-secondary ring-2 ring-secondary/45 uploaded-flash'
+                                    : isFocused()
+                                      ? 'border-accent ring-2 ring-accent/35'
+                                      : 'border-border hover:border-border-heavy'
                               } ${isDeleting() ? 'opacity-60' : ''}`}
                               onFocus={() => {
                                 setFocusedIndex(index())
@@ -1330,6 +1390,8 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                         {(item, index) => {
                           const isFocused = () => focusedIndex() === index()
                           const isCopied = () => copiedCardId() === item.id
+                          const isRecentlyUploaded = () =>
+                            highlightedUploadId() === item.id
                           const isDeleting = () =>
                             Boolean(deletingById()[item.id])
 
@@ -1343,9 +1405,11 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                               class={`group relative mb-2 break-inside-avoid overflow-hidden rounded-[10px] border-2 transition-all outline-none ${
                                 isCopied()
                                   ? 'border-mint ring-2 ring-mint/40'
-                                  : isFocused()
-                                    ? 'border-accent ring-2 ring-accent/35'
-                                    : 'border-border hover:border-border-heavy'
+                                  : isRecentlyUploaded()
+                                    ? 'border-secondary ring-2 ring-secondary/45 uploaded-flash'
+                                    : isFocused()
+                                      ? 'border-accent ring-2 ring-accent/35'
+                                      : 'border-border hover:border-border-heavy'
                               } ${isDeleting() ? 'opacity-60' : ''}`}
                               onFocus={() => {
                                 setFocusedIndex(index())

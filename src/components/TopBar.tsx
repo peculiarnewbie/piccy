@@ -33,6 +33,14 @@ export default function TopBar(props: { onUploadClick?: () => void }) {
         >
           Library
         </Link>
+        <Link
+          to="/pricing"
+          class="tab"
+          activeProps={{ class: 'tab tab-active' }}
+          activeOptions={{ exact: true }}
+        >
+          Pricing
+        </Link>
       </div>
 
       {/* Right: Actions */}
