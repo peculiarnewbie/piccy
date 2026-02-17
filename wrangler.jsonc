@@ -1,28 +1,38 @@
 {
-    "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "piccy",
-    "compatibility_date": "2026-01-01",
-    "compatibility_flags": ["nodejs_compat"],
-    // "main": "@tanstack/solid-start/server-entry",
-    "main": "src/worker/index.ts",
-    "d1_databases": [
-        {
-            "binding": "DB",
-            "database_name": "piccy",
-	    "database_id": "2cf3fce9-7c34-4c0b-9d0d-4e3edff17501",
-	    "remote": true,
-	    "migrations_dir": "./migrations"
-        },
-    ],
-    "r2_buckets": [
-        {
-            "binding": "BUCKET",
-            "bucket_name": "piccy",
-            "preview_bucket_name": "piccy",
-	    "remote": true
-        },
-    ],
-    "observability": {
-	    "enabled": true
-    }
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "piccy",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env",
+  ],
+  // "main": "@tanstack/solid-start/server-entry",
+  "main": "src/worker/index.ts",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "piccy",
+      "database_id": "2cf3fce9-7c34-4c0b-9d0d-4e3edff17501",
+      "remote": true,
+      "migrations_dir": "./migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "piccy",
+      "preview_bucket_name": "piccy",
+      "remote": true,
+    },
+  ],
+  "routes": [
+    {
+      "pattern": "piccy.peculiarnewbie.com",
+      "custom_domain": true,
+    },
+  ],
+
+  "observability": {
+    "enabled": true,
+  },
 }

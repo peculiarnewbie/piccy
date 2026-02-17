@@ -40,6 +40,23 @@ If you prefer not to use Tailwind CSS:
 
 2. Visit the [Better Auth documentation](https://www.better-auth.com) to unlock the full potential of authentication in your app.
 
+3. Configure OAuth providers in `.env.local`:
+
+   ```dotenv
+   GOOGLE_CLIENT_ID=
+   GOOGLE_CLIENT_SECRET=
+   DISCORD_CLIENT_ID=
+   DISCORD_CLIENT_SECRET=
+   ```
+
+4. Add OAuth redirect URLs in provider consoles:
+   - Google:
+     - `http://localhost:3000/api/auth/callback/google`
+     - `https://your-domain.com/api/auth/callback/google`
+   - Discord:
+     - `http://localhost:3000/api/auth/callback/discord`
+     - `https://your-domain.com/api/auth/callback/discord`
+
 ### Adding a Database (Optional)
 
 Better Auth can work in stateless mode, but to persist user data, add a database:

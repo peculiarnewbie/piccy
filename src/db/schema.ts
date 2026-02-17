@@ -7,11 +7,85 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
+export const authUsers = sqliteTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: integer('emailVerified', { mode: 'boolean' }).notNull(),
+  image: text('image'),
+  createdAt: text('createdAt').notNull(),
+  updatedAt: text('updatedAt').notNull(),
+})
+
+export const authSessions = sqliteTable(
+  'session',
+  {
+    id: text('id').primaryKey(),
+    expiresAt: text('expiresAt').notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: text('createdAt').notNull(),
+    updatedAt: text('updatedAt').notNull(),
+    ipAddress: text('ipAddress'),
+    userAgent: text('userAgent'),
+    userId: text('userId')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    userIdIdx: index('session_userId_idx').on(table.userId),
+  }),
+)
+
+export const authAccounts = sqliteTable(
+  'account',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('accountId').notNull(),
+    providerId: text('providerId').notNull(),
+    userId: text('userId')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    accessToken: text('accessToken'),
+    refreshToken: text('refreshToken'),
+    idToken: text('idToken'),
+    accessTokenExpiresAt: text('accessTokenExpiresAt'),
+    refreshTokenExpiresAt: text('refreshTokenExpiresAt'),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: text('createdAt').notNull(),
+    updatedAt: text('updatedAt').notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('account_userId_idx').on(table.userId),
+    providerAccountIdx: uniqueIndex('account_provider_account_unique').on(
+      table.providerId,
+      table.accountId,
+    ),
+  }),
+)
+
+export const authVerifications = sqliteTable(
+  'verification',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: text('expiresAt').notNull(),
+    createdAt: text('createdAt').notNull(),
+    updatedAt: text('updatedAt').notNull(),
+  },
+  (table) => ({
+    identifierIdx: index('verification_identifier_idx').on(table.identifier),
+  }),
+)
+
 export const uploads = sqliteTable(
   'uploads',
   {
     id: text('id').primaryKey(),
-    ownerUserId: text('owner_user_id'),
+    ownerUserId: text('owner_user_id').references(() => authUsers.id, {
+      onDelete: 'set null',
+    }),
     expiresAt: text('expires_at'),
     r2Key: text('r2_key').notNull(),
     publicUrl: text('public_url').notNull(),
@@ -58,7 +132,9 @@ export const uploadCopyEvents = sqliteTable(
     uploadId: text('upload_id')
       .notNull()
       .references(() => uploads.id, { onDelete: 'cascade' }),
-    actorUserId: text('actor_user_id'),
+    actorUserId: text('actor_user_id').references(() => authUsers.id, {
+      onDelete: 'set null',
+    }),
     copiedFormat: text('copied_format', {
       enum: ['direct', 'markdown', 'bbcode'],
     }).notNull(),
@@ -82,3 +158,6 @@ export type NewUpload = typeof uploads.$inferInsert
 
 export type UploadCopyEvent = typeof uploadCopyEvents.$inferSelect
 export type NewUploadCopyEvent = typeof uploadCopyEvents.$inferInsert
+
+export type AuthUser = typeof authUsers.$inferSelect
+export type NewAuthUser = typeof authUsers.$inferInsert

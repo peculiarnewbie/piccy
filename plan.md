@@ -21,7 +21,7 @@ Build a fast image sharing web app that beats Discord's GIF-explorer flow for sp
 
 ### Auth Method
 
-Magic link (email-based passwordless login) only. No OAuth providers or password-based auth for MVP. Keeps the auth UI minimal (single email input + "check your inbox" flow).
+OAuth (Google + Discord) only for MVP. No email/password or magic-link flow, which removes email delivery complexity while keeping sign-in low-friction.
 
 ## UX Requirements
 
@@ -104,8 +104,28 @@ Indexes:
 - Added migration generation config at `drizzle.config.ts` (output directory: `./migrations`)
 - Added remote D1 push config at `drizzle.push.config.ts` using Drizzle `d1-http` driver
 - Added scripts: `bun --bun run db:generate` and `bun --bun run db:push`
-- Generated initial migration: `migrations/20260217122038_brave_alex_wilder/migration.sql`
+- Generated initial migration: `migrations/20260217145202_omniscient_gamma_corps/migration.sql`
+- Pushed app-table migration to remote D1
 - `db:push` requires `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_DATABASE_ID` (or `DB_ID`), and `CLOUDFLARE_D1_TOKEN` (or `CLOUDFLARE_API_TOKEN`)
+
+### Auth Foundation Implementation Status (2026-02-17)
+
+- Updated Better Auth server config at `src/lib/auth.ts` for Cloudflare Worker runtime + D1 binding
+- Switched auth flow to OAuth providers only (Google + Discord), with email/password disabled
+- Removed magic-link email transport requirements in favor of provider-managed OAuth redirects
+- Added Better Auth core table migration SQL at `migrations/20260217191500_better_auth_core/migration.sql`
+- Applied Better Auth migration to local D1 via `wrangler d1 execute ... --local --file migrations/20260217191500_better_auth_core/migration.sql`
+- Updated auth client setup at `src/lib/auth-client.ts` for provider-based sign in
+- Updated demo auth UI to OAuth flow (Google/Discord buttons + sign out) at `src/routes/demo.better-auth.tsx`
+- Updated upload endpoint to attach `owner_user_id` for authenticated users and keep anonymous expiry for signed-out uploads
+
+### Upload MVP Implementation Status (2026-02-17)
+
+- Added Worker upload endpoint at `POST /api/uploads`
+- Added strict upload validation (MIME, extension match, magic-byte signature, 15MB limit)
+- Added R2 original upload + D1 metadata insert (`uploads` table)
+- Added share URL serving path at `GET /i/:encodedR2Key`
+- Replaced homepage with working upload surface (click, drag-drop, paste, progress, auto-copy, output formats)
 
 ## API Contract (MVP)
 
@@ -113,7 +133,7 @@ Indexes:
   - accepts multipart image upload
   - validates MIME, extension, file signature, max size
   - stores object in R2
-  - inserts metadata row in D1
+  - inserts metadata row in D1 (sets `owner_user_id` when authenticated; anonymous uploads get `expires_at`)
   - returns `id`, `directUrl`, `markdown`, `bbcode`
 
 - `POST /api/uploads/:id/copy`
@@ -130,33 +150,189 @@ Indexes:
   - auth required
   - soft delete row (`deleted_at` set), R2 objects cleaned up later by scheduled worker
 
-- Better Auth routes (magic link only)
+- Better Auth routes (OAuth providers)
   - `GET|POST /api/auth/*`
 
-## Frontend Feature Plan (Tanstack Solid Start)
+## Frontend UI Plan (SolidJS + Tailwind)
 
-### Upload Surface
+### Design Philosophy
 
-- big paste/drop target always visible
-- hidden file input for click-to-upload
-- clipboard handler reads `ClipboardEvent.clipboardData.items`
-- local preview shown immediately
-- upload progress bar
-- auto-copy on success with fallback if Clipboard API blocked
+Inspired by Discord's GIF selector: a dense, browsable grid of images where the primary action is **click to copy URL**. The app should feel like a personal image clipboard — fast, visual, zero-friction sharing.
 
-### Share Output
+### Layout & Navigation
 
-- direct URL (default)
-- Markdown format: `![image](url)`
-- BBCode format: `[img]url[/img]`
-- toast feedback for copied state
+- **Single-page app feel** — no full page navigations for core flows
+- **Top bar**: app logo/name left, upload button center-right, auth (avatar/sign-in) far right
+- **Main area**: masonry image grid (the library) is the default view for authenticated users
+- **Anonymous/logged-out view**: upload surface is primary, with a CTA to sign in for library access
+- **No sidebar** — keep the viewport maximized for images
 
-### Library (Authenticated)
+### Masonry Image Grid (Core UI)
 
-- list/grid toggle
-- sort by newest / most copied
-- quick actions: copy direct, copy markdown, copy bbcode, delete
-- per-image copy count visible
+The heart of the app. All uploaded images displayed in a Pinterest/Discord-style masonry layout.
+
+#### Grid Behavior
+
+- **Fixed column width** (~200px), variable height per image (preserves aspect ratio)
+- **Responsive columns**: auto-fill based on viewport width (2 cols mobile, 3-4 tablet, 5-6+ desktop)
+- CSS `columns` or CSS Grid with `masonry` (with JS fallback for browsers without native masonry)
+- **Infinite scroll** with cursor-based pagination (`GET /api/me/uploads?cursor=...`)
+- **Skeleton placeholders** while loading (match expected image dimensions from D1 metadata)
+- Thumbnails loaded first (from `thumb_r2_key` when available), full image on demand
+
+#### Image Card
+
+Each image in the grid is a card with:
+
+- **Thumbnail filling the card** (object-fit: cover, rounded corners)
+- **Hover overlay** (semi-transparent dark scrim) showing:
+  - Copy icon button (copies direct URL — the default/primary action)
+  - Format selector: small pill buttons for `URL` | `MD` | `BB` (direct, markdown, bbcode)
+  - Delete button (trash icon, bottom-right, requires confirm)
+  - File info: dimensions, size, format badge (GIF/PNG/JPEG/WEBP)
+- **Click anywhere on card** → copies direct URL to clipboard (the "Discord GIF selector" interaction)
+- **Visual feedback on copy**: brief green flash/checkmark overlay + toast notification
+- **GIF badge**: animated GIF indicator in corner (plays on hover, static thumbnail otherwise)
+- **Copy count badge**: small counter in bottom-left corner if > 0
+
+#### Keyboard Navigation
+
+- Arrow keys navigate between cards in the grid
+- `Enter` or `c` copies the focused card's direct URL
+- `m` copies as markdown, `b` copies as bbcode
+- `Delete` or `d` triggers delete flow for focused card
+- `Escape` clears selection/focus
+
+### Upload Flow
+
+Upload is always accessible but never blocks the grid view.
+
+#### Upload Triggers
+
+- **Paste anywhere** (`Ctrl+V`/`Cmd+V`) — works globally, highest priority
+- **Drag-drop onto the grid** — the entire main area is a drop target
+- **Upload button** in top bar — opens file picker
+- **Multi-file support** — upload multiple images at once
+
+#### Upload UX
+
+- On upload trigger, a **compact upload card** appears at the top of the grid (inline, not a modal)
+- Shows: local preview thumbnail, filename, progress bar, cancel button
+- Multiple concurrent uploads each get their own card
+- On success: card transitions into a normal grid card with a brief highlight/glow effect
+- On failure: card shows error state with retry button
+- **Auto-copy on single upload**: if only one file uploaded, auto-copy direct URL + show toast
+- **No modal, no page change** — user stays in context
+
+#### Drag-Drop Visual Feedback
+
+- When dragging over the page, full-viewport overlay appears with drop-zone styling
+- Dashed cyan border, "Drop to upload" text, slight dim on background grid
+- Overlay disappears immediately on drag-leave or drop
+
+### Share/Copy System
+
+#### Copy Formats
+
+- **Direct URL** (default on click): `https://r2-domain/{ulid}/original.{ext}`
+- **Markdown**: `![image](url)`
+- **BBCode**: `[img]url[/img]`
+
+#### Copy Feedback
+
+- **Toast notifications**: slide in from bottom-right, auto-dismiss after 2s
+- Toast shows: "Copied!" with format indicator and tiny thumbnail
+- Stack multiple toasts if rapid-fire copying
+- **Card flash**: brief green border/overlay on the copied card (200ms)
+
+### Search & Filter Bar
+
+- Sits above the grid, below the top bar
+- **Search input** (Phase 2: semantic search, Phase 1: filename/date filter)
+- **Sort toggle**: "Newest" | "Most copied"
+- **Filter chips**: by format (GIF, PNG, JPEG, WEBP), by date range
+- Compact single-row design — doesn't eat into grid space
+
+### Auth UI
+
+Minimal, non-intrusive auth flow:
+
+- **Signed out**: top-right shows "Sign in" text button
+- **Sign-in flow**: inline dropdown/popover from the sign-in button (not a full page)
+  - "Continue with Google" and "Continue with Discord" actions
+  - Redirect-based provider authorization and callback handling
+  - Auto-detects sign-in completion and refreshes session
+- **Signed in**: top-right shows avatar/initial circle + dropdown with "Sign out"
+- **Anonymous upload**: still works without auth, but grid/library requires sign-in
+
+### Image Detail View (Deferred, Post-MVP)
+
+- Click-and-hold or double-click opens a lightbox overlay
+- Full-size image with dark backdrop
+- Copy format buttons, metadata panel (dimensions, size, upload date, copy count)
+- Left/right arrow navigation between images
+- `Escape` or click backdrop to close
+
+### Toast / Notification System
+
+- Bottom-right positioned toast stack
+- Types: success (green), error (red), info (cyan)
+- Auto-dismiss (2s for success, 5s for errors)
+- Max 3 visible, older ones slide out
+- Each toast: icon + message + optional action link
+
+### Empty States
+
+- **No uploads yet**: centered illustration/icon + "Paste, drop, or click to upload your first image" + large drop zone
+- **Search no results**: "No images match your search" with clear-filter action
+- **Loading**: skeleton grid matching expected column layout
+
+### Responsive Breakpoints
+
+- **Mobile** (<640px): 2 columns, top bar collapses to icon-only, upload via paste/button only (no visible drop zone text)
+- **Tablet** (640-1024px): 3-4 columns, full top bar
+- **Desktop** (1024px+): 5-6+ columns, comfortable spacing
+- Touch devices: tap to copy (no hover overlay — show format options on first tap, copy on second tap or use long-press menu)
+
+### Animation & Polish
+
+- **Card entrance**: subtle fade-in + scale-up as cards enter viewport (intersection observer)
+- **Upload card transition**: smooth height animation as upload card becomes grid card
+- **Hover overlay**: 150ms fade-in transition
+- **Copy flash**: 200ms green pulse on card border
+- **Drag overlay**: 100ms fade-in
+- **Toast**: slide-in from right, slide-out on dismiss
+- **Skeleton shimmer**: subtle loading animation on placeholder cards
+- Respect `prefers-reduced-motion` — disable animations when set
+
+### Component Architecture
+
+```
+src/
+  components/
+    TopBar.tsx              — app header with logo, upload button, auth
+    ImageGrid.tsx           — masonry grid container + infinite scroll
+    ImageCard.tsx           — single image card with hover overlay
+    UploadCard.tsx          — inline upload progress card
+    UploadDropZone.tsx      — global drag-drop overlay
+    CopyFormatPicker.tsx    — URL/MD/BB pill buttons
+    Toast.tsx               — individual toast notification
+    ToastStack.tsx          — toast container + state management
+    SearchBar.tsx           — search input + sort + filter chips
+    AuthPopover.tsx         — sign-in/sign-out dropdown
+    EmptyState.tsx          — empty/loading/error states
+    SkeletonCard.tsx        — loading placeholder card
+  hooks/
+    useClipboardPaste.ts    — global paste event handler
+    useDragDrop.ts          — drag-drop state management
+    useImageUpload.ts       — upload logic + progress tracking
+    useCopyToClipboard.ts   — copy + format + toast trigger
+    useInfiniteScroll.ts    — intersection observer + cursor pagination
+    useGridKeyboard.ts      — arrow key navigation for grid
+  stores/
+    uploads.ts              — upload list state + mutations
+    toasts.ts               — toast notification queue
+```
 
 ## Anonymous Upload Lifecycle
 
@@ -226,55 +402,70 @@ Not in MVP, but schema and pipeline should remain compatible.
 
 ### Phase 0 - Project Bootstrap
 
-- [ ] Add Cloudflare Worker integration for serving app + API
-- [ ] Configure `wrangler.jsonc` with current `compatibility_date`
-- [ ] Add required bindings: D1 (`DB`), R2 (`IMAGES_BUCKET`)
-- [ ] Enable Better Auth runtime requirements (`nodejs_compat`/ALS)
-- [ ] Add environment management for local/dev/prod
+- [x] Add Cloudflare Worker integration for serving app + API
+- [x] Configure `wrangler.jsonc` with current `compatibility_date`
+- [x] Add required bindings: D1 (`DB`), R2 (`BUCKET`)
+- [x] Enable Better Auth runtime requirements (`nodejs_compat`/ALS)
 
 ### Phase 1 - Database + Auth Foundation
 
 - [x] Create D1 database and initial migrations folder
 - [x] Set up Drizzle ORM beta for D1 schema, queries, and migrations
-- [ ] Implement Better Auth config for Cloudflare Worker runtime
-- [ ] Mount Better Auth handler at `/api/auth/*`
-- [ ] Run Better Auth schema migrations (programmatic or CLI-compatible setup)
-- [ ] Add auth client integration on frontend
-- [ ] Configure magic link email transport (e.g. Resend, Mailchannels)
-- [ ] Implement auth UI (email input, "check your inbox" state, sign out)
+- [x] Implement Better Auth config for Cloudflare Worker runtime
+- [x] Mount Better Auth handler at `/api/auth/*`
+- [x] Run Better Auth schema migrations (programmatic or CLI-compatible setup)
+- [x] Add auth client integration on frontend
+- [x] Configure OAuth providers (Google + Discord)
+- [x] Implement auth UI (email input, "check your inbox" state, sign out)
 
 ### Phase 2 - Upload MVP
 
-- [ ] Implement `POST /api/uploads`
-- [ ] Add R2 object upload with metadata persistence in D1
-- [ ] Build upload button flow
-- [ ] Build drag-drop flow
-- [ ] Build clipboard paste flow (`Ctrl+V` / `Cmd+V`)
-- [ ] Add upload progress + error states
-- [ ] Add post-upload auto-copy behavior
-- [ ] Show direct URL + Markdown + BBCode outputs
+- [x] Implement `POST /api/uploads`
+- [x] Add R2 object upload with metadata persistence in D1
+- [x] Build upload button flow
+- [x] Build drag-drop flow
+- [x] Build clipboard paste flow (`Ctrl+V` / `Cmd+V`)
+- [x] Add upload progress + error states
+- [x] Add post-upload auto-copy behavior
+- [x] Show direct URL + Markdown + BBCode outputs
 
-### Phase 3 - Copy Tracking + Library
+### Phase 3 - Core UI Rebuild (Masonry Grid + Click-to-Copy)
 
 - [x] Add `copy_count` to uploads table
 - [x] Create `upload_copy_events` table and indexes
-- [ ] Implement `POST /api/uploads/:id/copy`
+- [ ] Implement `POST /api/uploads/:id/copy` endpoint
+- [ ] Implement `GET /api/me/uploads?cursor=...` endpoint with pagination
+- [ ] Build TopBar component (logo, upload button, auth placeholder)
+- [ ] Build ImageCard component (thumbnail, hover overlay, copy action)
+- [ ] Build ImageGrid component (CSS masonry layout, responsive columns)
+- [ ] Implement click-to-copy on image cards (direct URL default)
+- [ ] Build CopyFormatPicker (URL/MD/BB pill buttons on hover)
+- [ ] Build ToastStack + Toast components (copy feedback, errors)
+- [ ] Build UploadCard component (inline progress in grid)
+- [ ] Build UploadDropZone (global drag-drop overlay)
+- [ ] Refactor upload flow: paste/drop/button all create inline UploadCards (no modal)
+- [ ] Support multi-file upload (concurrent UploadCards)
+- [ ] Auto-copy on single-file upload success
+- [ ] Implement useInfiniteScroll hook (intersection observer + cursor pagination)
+- [ ] Build SkeletonCard + empty state for grid
+- [ ] Implement useGridKeyboard hook (arrow keys, Enter/c/m/b/d shortcuts)
 - [ ] Trigger copy tracking on all copy actions in UI
-- [ ] Implement `GET /api/me/uploads` with pagination
-- [ ] Build library UI (grid view, copy actions, load more)
-- [ ] Add sort by most copied / newest
 
-### Phase 4 - Management + Hardening
+### Phase 4 - Search, Filter, Management + Hardening
 
-- [ ] Implement soft-delete endpoint and UI action
+- [ ] Build SearchBar component (sort toggle: newest/most copied, format filter chips)
+- [ ] Implement soft-delete endpoint and delete UI (trash icon on hover, confirm)
 - [ ] Add ownership guards and authorization checks
+- [ ] Build AuthPopover component (sign-in dropdown, Google/Discord flow, sign-out)
 - [ ] Add rate limiting middleware
-- [ ] Add file size/type policy enforcement and explicit error messaging
+- [x] Add file size/type policy enforcement and explicit error messaging
 - [ ] Add retry strategy for transient upload failures
 - [ ] Add telemetry events for upload/copy performance
 - [ ] Add scheduled Worker (Cron Trigger) for cleanup:
-- [ ] Purge expired anonymous uploads (R2 + D1)
-- [ ] Purge soft-deleted uploads past grace period (R2 + D1)
+  - [ ] Purge expired anonymous uploads (R2 + D1)
+  - [ ] Purge soft-deleted uploads past grace period (R2 + D1)
+- [ ] GIF badge on animated GIF cards (play on hover, static otherwise)
+- [ ] Touch device support (tap-to-copy flow, long-press menu)
 
 ### Phase 5 - Cloudflare Production Setup
 
@@ -315,8 +506,14 @@ Not in MVP, but schema and pipeline should remain compatible.
 
 - user can paste an image and receive copied direct link in one flow
 - user can upload by button and drag-drop
-- authenticated user can browse own uploads and see copy counts
+- uploads appear inline in the masonry grid without page navigation
+- clicking any image in the grid copies its direct URL to clipboard
+- hover overlay shows format options (URL/MD/BB) and delete
+- authenticated user can browse own uploads in masonry grid with infinite scroll
 - copy actions increment and persist count reliably
+- keyboard navigation works across the grid (arrows, Enter, c/m/b/d)
+- toast notifications confirm copy actions
+- responsive masonry: 2 cols mobile → 5-6+ cols desktop
 - all storage and compute are Cloudflare-native
 
 ## Risks / Mitigations
