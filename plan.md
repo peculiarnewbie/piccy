@@ -153,12 +153,12 @@ Build the fastest image sharing flow on the web:
 
 ### Phase 5 - Hardening + Operations
 
-- [ ] Add rate limiting (per IP and/or per user)
+- [x] Add rate limiting (per IP and/or per user)
 - [x] Add retry strategy for transient upload/network failures
-- [ ] Add telemetry for upload latency, copy latency, and failures
-- [ ] Add scheduled cleanup job for expired anonymous uploads
-- [ ] Add scheduled cleanup job for soft-deleted uploads past grace period
-- [ ] Audit ownership/authorization checks on all manage endpoints
+- [x] Add telemetry for upload latency, copy latency, and failures
+- [x] Add scheduled cleanup job for expired anonymous uploads
+- [x] Add scheduled cleanup job for soft-deleted uploads past grace period
+- [x] Audit ownership/authorization checks on all manage endpoints
 
 ### Phase 6 - Production Setup
 

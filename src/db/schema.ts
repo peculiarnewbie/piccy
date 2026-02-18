@@ -158,11 +158,72 @@ export const uploadCopyEvents = sqliteTable(
   }),
 )
 
+export const requestRateLimits = sqliteTable(
+  'request_rate_limits',
+  {
+    id: text('id').primaryKey(),
+    operation: text('operation').notNull(),
+    scope: text('scope').notNull(),
+    scopeId: text('scope_id').notNull(),
+    windowStartedAt: integer('window_started_at', { mode: 'number' }).notNull(),
+    requestCount: integer('request_count', { mode: 'number' })
+      .notNull()
+      .default(1),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    operationScopeWindowIdx: index(
+      'idx_request_rate_limits_operation_scope',
+    ).on(table.operation, table.scope, table.windowStartedAt),
+    windowStartedAtIdx: index('idx_request_rate_limits_window_started_at').on(
+      table.windowStartedAt,
+    ),
+  }),
+)
+
+export const requestTelemetryEvents = sqliteTable(
+  'request_telemetry_events',
+  {
+    id: text('id').primaryKey(),
+    requestType: text('request_type').notNull(),
+    requestPath: text('request_path').notNull(),
+    statusCode: integer('status_code', { mode: 'number' }).notNull(),
+    latencyMs: integer('latency_ms', { mode: 'number' }).notNull(),
+    failed: integer('failed', { mode: 'boolean' }).notNull().default(false),
+    failureReason: text('failure_reason'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    requestTypeCreatedAtIdx: index('idx_request_telemetry_type_created_at').on(
+      table.requestType,
+      table.createdAt,
+    ),
+    statusCreatedAtIdx: index('idx_request_telemetry_status_created_at').on(
+      table.statusCode,
+      table.createdAt,
+    ),
+  }),
+)
+
 export type Upload = typeof uploads.$inferSelect
 export type NewUpload = typeof uploads.$inferInsert
 
 export type UploadCopyEvent = typeof uploadCopyEvents.$inferSelect
 export type NewUploadCopyEvent = typeof uploadCopyEvents.$inferInsert
+
+export type RequestRateLimit = typeof requestRateLimits.$inferSelect
+export type NewRequestRateLimit = typeof requestRateLimits.$inferInsert
+
+export type RequestTelemetryEvent = typeof requestTelemetryEvents.$inferSelect
+export type NewRequestTelemetryEvent =
+  typeof requestTelemetryEvents.$inferInsert
 
 export type AuthUser = typeof authUsers.$inferSelect
 export type NewAuthUser = typeof authUsers.$inferInsert
