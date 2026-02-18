@@ -917,7 +917,7 @@ function LibraryWorkspace() {
 
     const item = snapshot[index]
     const confirmed = window.confirm(
-      'Delete this upload? It can be recovered only until cleanup runs.',
+      'Delete this upload? This action is permanent.',
     )
     if (!confirmed) {
       return
@@ -1106,7 +1106,10 @@ function LibraryWorkspace() {
   /* ── Render ── */
 
   return (
-    <div class="min-h-screen animate-route-enter" style={{ 'padding-top': 'var(--topbar-h)' }}>
+    <div
+      class="min-h-screen animate-route-enter"
+      style={{ 'padding-top': 'var(--topbar-h)' }}
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -1506,7 +1509,10 @@ function LibraryWorkspace() {
             onClick={() => setUploadPanelOpen(false)}
           />
 
-          <div class="fixed inset-0 z-50 flex flex-col bg-bg md:relative md:inset-auto md:top-auto md:z-auto md:w-[400px] md:shrink-0 md:border-l-2 md:border-border md:bg-surface animate-panel-in" style={{ top: 'var(--topbar-h)' }}>
+          <div
+            class="fixed inset-0 z-50 flex flex-col bg-bg md:relative md:inset-auto md:top-auto md:z-auto md:w-[400px] md:shrink-0 md:border-l-2 md:border-border md:bg-surface animate-panel-in"
+            style={{ top: 'var(--topbar-h)' }}
+          >
             {/* Panel header */}
             <div class="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b-2 border-border">
               <div class="panel-label mb-0 flex-1">Upload</div>

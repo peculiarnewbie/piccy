@@ -861,7 +861,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
 
     const item = snapshot[index]
     const confirmed = window.confirm(
-      'Delete this upload? It can be recovered only until cleanup runs.',
+      'Delete this upload? This action is permanent.',
     )
     if (!confirmed) {
       return
@@ -1036,8 +1036,14 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
 
   if (isLibraryRoute()) {
     return (
-      <div class="min-h-screen px-3 pb-4 md:px-7 md:pb-7 animate-route-enter" style={{ 'padding-top': 'calc(var(--topbar-h) + 16px)' }}>
-        <div class="mx-auto max-w-[1280px] min-h-[440px] flex flex-col gap-4 md:gap-5" style={{ height: 'calc(100vh - var(--topbar-h) - 48px)' }}>
+      <div
+        class="min-h-screen px-3 pb-4 md:px-7 md:pb-7 animate-route-enter"
+        style={{ 'padding-top': 'calc(var(--topbar-h) + 16px)' }}
+      >
+        <div
+          class="mx-auto max-w-[1280px] min-h-[440px] flex flex-col gap-4 md:gap-5"
+          style={{ height: 'calc(100vh - var(--topbar-h) - 48px)' }}
+        >
           <div class="flex items-end justify-between gap-5 flex-wrap border-b-2 border-border pb-4">
             <div>
               <h1 class="text-[clamp(24px,3.5vw,34px)] font-[800] tracking-[-0.9px] leading-[1.15]">
@@ -1267,7 +1273,10 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
   }
 
   return (
-    <div class="min-h-screen flex flex-col animate-route-enter" style={{ 'padding-top': 'var(--topbar-h)' }}>
+    <div
+      class="min-h-screen flex flex-col animate-route-enter"
+      style={{ 'padding-top': 'var(--topbar-h)' }}
+    >
       <input
         ref={fileInputRef}
         type="file"

@@ -7,7 +7,7 @@ const MAX_ANONYMOUS_UPLOADS = 25
 const MAX_USER_UPLOADS = 250
 const MAX_PAID_USER_UPLOADS = 10_000
 const ANONYMOUS_UPLOAD_EXPIRY_DAYS = 30
-const SOFT_DELETE_GRACE_PERIOD_DAYS = 7
+const PUBLIC_R2_BASE_URL = 'https://piccy-r2.peculiarnewbie.com'
 const PAID_MULTI_UPLOAD_BATCH_FIELD = 'batchSize'
 const SESSION_LOOKUP_TIMEOUT_MS = 4_000
 const SESSION_LOOKUP_MAX_ATTEMPTS = 2
@@ -312,6 +312,18 @@ const sha256Hex = async (arrayBuffer: ArrayBuffer): Promise<string> => {
 }
 
 const toDirectUrl = (request: Request, r2Key: string): string => {
+  const normalizedKey = r2Key
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+
+  if (PUBLIC_R2_BASE_URL.length > 0) {
+    const baseUrl = PUBLIC_R2_BASE_URL.endsWith('/')
+      ? PUBLIC_R2_BASE_URL.slice(0, -1)
+      : PUBLIC_R2_BASE_URL
+    return `${baseUrl}/${normalizedKey}`
+  }
+
   const origin = new URL(request.url).origin
   return `${origin}/i/${encodeURIComponent(r2Key)}`
 }
@@ -920,33 +932,6 @@ const cleanupExpiredAnonymousUploads = async (): Promise<number> => {
   return deletedCount
 }
 
-const cleanupSoftDeletedUploads = async (): Promise<number> => {
-  const cutoffIso = new Date(
-    Date.now() - SOFT_DELETE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString()
-  let deletedCount = 0
-
-  for (let index = 0; index < MAX_CLEANUP_BATCHES_PER_RUN; index += 1) {
-    const batchDeleted = await cleanupUploadsByQuery(
-      `SELECT id, r2_key, thumb_r2_key, webp_r2_key
-       FROM uploads
-       WHERE deleted_at IS NOT NULL
-         AND deleted_at <= ?
-       ORDER BY deleted_at ASC
-       LIMIT ?`,
-      [cutoffIso, CLEANUP_BATCH_SIZE],
-    )
-
-    deletedCount += batchDeleted
-
-    if (batchDeleted < CLEANUP_BATCH_SIZE) {
-      break
-    }
-  }
-
-  return deletedCount
-}
-
 const cleanupStaleRateLimitRows = async (): Promise<number> => {
   const cutoffMs = Date.now() - RATE_LIMIT_RETENTION_HOURS * 60 * 60 * 1000
 
@@ -980,12 +965,10 @@ const runScheduledMaintenance = async (): Promise<void> => {
 
   try {
     const expiredAnonymousDeleted = await cleanupExpiredAnonymousUploads()
-    const softDeletedRemoved = await cleanupSoftDeletedUploads()
     const staleRateLimitRowsRemoved = await cleanupStaleRateLimitRows()
 
     console.info('Scheduled cleanup completed', {
       expiredAnonymousDeleted,
-      softDeletedRemoved,
       staleRateLimitRowsRemoved,
       durationMs: Date.now() - startedAt,
     })
@@ -1475,7 +1458,7 @@ const handleDeleteMyUploadRequest = async (
   }
 
   const existingUpload = await env.DB.prepare(
-    `SELECT id
+    `SELECT id, r2_key, thumb_r2_key, webp_r2_key
       FROM uploads
       WHERE id = ?
         AND ${ownerScope.ownerField} = ?
@@ -1483,7 +1466,7 @@ const handleDeleteMyUploadRequest = async (
       LIMIT 1`,
   )
     .bind(uploadId, ownerScope.ownerId)
-    .first<{ id: string }>()
+    .first<CleanupUploadRow>()
 
   if (!existingUpload) {
     return withSetCookieHeader(
@@ -1497,21 +1480,23 @@ const handleDeleteMyUploadRequest = async (
     )
   }
 
-  const nowIso = new Date().toISOString()
+  const didDeleteAssets = await deleteUploadAssets(existingUpload)
+  if (!didDeleteAssets) {
+    return withSetCookieHeader(
+      respondJson(
+        {
+          error: 'Failed to delete upload.',
+        },
+        500,
+      ),
+      identity.setCookieHeader,
+    )
+  }
 
   try {
-    await env.DB.prepare(
-      `UPDATE uploads
-       SET deleted_at = ?,
-           updated_at = ?
-       WHERE id = ?
-         AND ${ownerScope.ownerField} = ?
-         AND deleted_at IS NULL`,
-    )
-      .bind(nowIso, nowIso, uploadId, ownerScope.ownerId)
-      .run()
+    await hardDeleteUpload(existingUpload.id)
   } catch (error) {
-    console.error('Soft delete update failed', error)
+    console.error('Hard delete row removal failed', error)
     return withSetCookieHeader(
       respondJson(
         {
