@@ -8,7 +8,9 @@ const MAX_PAID_USER_UPLOADS = 10_000
 const ANONYMOUS_UPLOAD_EXPIRY_DAYS = 30
 const SOFT_DELETE_GRACE_PERIOD_DAYS = 7
 const PAID_MULTI_UPLOAD_BATCH_FIELD = 'batchSize'
-const SESSION_LOOKUP_TIMEOUT_MS = 1_500
+const SESSION_LOOKUP_TIMEOUT_MS = 4_000
+const SESSION_LOOKUP_MAX_ATTEMPTS = 2
+const AUTH_SESSION_LOOKUP_TIMEOUT_MESSAGE = 'Auth session lookup timed out'
 const LIBRARY_PAGE_SIZE = 30
 const CLEANUP_BATCH_SIZE = 50
 const MAX_CLEANUP_BATCHES_PER_RUN = 5
@@ -16,6 +18,11 @@ const TELEMETRY_RETENTION_DAYS = 30
 const RATE_LIMIT_RETENTION_HOURS = 24
 const ANONYMOUS_COOKIE_NAME = 'piccy_anon_id'
 const ANONYMOUS_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+const AUTH_SESSION_COOKIE_NAMES = new Set([
+  'better-auth.session_token',
+  '__Secure-better-auth.session_token',
+  '__Host-better-auth.session_token',
+])
 const ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 const ULID_REGEX = /^[0-9A-HJKMNP-TV-Z]{26}$/
 
@@ -164,6 +171,7 @@ type RequestIdentity = {
   isPaidUser: boolean
   anonymousId: string | null
   setCookieHeader: string | null
+  authSessionLookupFailed: boolean
 }
 
 type AuthenticatedUser = {
@@ -226,6 +234,21 @@ const withSetCookieHeader = (
     statusText: response.statusText,
     headers,
   })
+}
+
+const respondAuthSessionUnavailable = (
+  setCookieHeader: string | null,
+): Response => {
+  return withSetCookieHeader(
+    respondJson(
+      {
+        error:
+          'Authentication session is temporarily unavailable. Please retry.',
+      },
+      503,
+    ),
+    setCookieHeader,
+  )
 }
 
 const methodNotAllowed = (allowedMethod: string): Response => {
@@ -507,6 +530,32 @@ const getCookieValue = (request: Request, name: string): string | null => {
   return null
 }
 
+const hasLikelyAuthSessionCookie = (request: Request): boolean => {
+  const cookieHeader = request.headers.get('cookie')
+  if (!cookieHeader) {
+    return false
+  }
+
+  for (const part of cookieHeader.split(';')) {
+    const trimmed = part.trim()
+    if (!trimmed) {
+      continue
+    }
+
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex <= 0) {
+      continue
+    }
+
+    const cookieName = trimmed.slice(0, separatorIndex)
+    if (AUTH_SESSION_COOKIE_NAMES.has(cookieName)) {
+      return true
+    }
+  }
+
+  return false
+}
+
 const timingSafeEqual = (a: string, b: string): boolean => {
   if (a.length !== b.length) {
     return false
@@ -643,7 +692,35 @@ const resolveRequestIdentity = async (
   options: IdentityResolutionOptions,
 ): Promise<RequestIdentity> => {
   const signingSecret = getAnonymousCookieSigningSecret()
-  const authenticatedUser = await getAuthenticatedUser(request)
+  const requestHasAuthCookie = hasLikelyAuthSessionCookie(request)
+  let authenticatedUser: AuthenticatedUser | null = null
+  let authSessionLookupFailed = false
+
+  try {
+    authenticatedUser = await getAuthenticatedUser(request)
+  } catch (error) {
+    if (requestHasAuthCookie) {
+      authSessionLookupFailed = true
+      console.warn(
+        'Auth session lookup failed for authenticated request',
+        error,
+      )
+    } else {
+      console.warn('Auth session lookup failed; continuing as anonymous', error)
+    }
+  }
+
+  if (authSessionLookupFailed) {
+    return {
+      userId: null,
+      userEmail: null,
+      isPaidUser: false,
+      anonymousId: null,
+      setCookieHeader: null,
+      authSessionLookupFailed: true,
+    }
+  }
+
   const userId = authenticatedUser?.id ?? null
   const userEmail = authenticatedUser?.email ?? null
   const isPaidUser = isAuthenticatedUserPaid(authenticatedUser)
@@ -663,6 +740,7 @@ const resolveRequestIdentity = async (
       isPaidUser,
       anonymousId,
       setCookieHeader,
+      authSessionLookupFailed: false,
     }
   }
 
@@ -681,6 +759,7 @@ const resolveRequestIdentity = async (
     isPaidUser: false,
     anonymousId,
     setCookieHeader,
+    authSessionLookupFailed: false,
   }
 }
 
@@ -1161,31 +1240,36 @@ const withTimeout = async <T>(
 const getAuthenticatedUser = async (
   request: Request,
 ): Promise<AuthenticatedUser | null> => {
-  try {
-    const session = await withTimeout(
-      auth.api.getSession({
-        headers: request.headers,
-      }),
-      SESSION_LOOKUP_TIMEOUT_MS,
-      'Auth session lookup timed out',
-    )
+  for (let attempt = 1; attempt <= SESSION_LOOKUP_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const session = await withTimeout(
+        auth.api.getSession({
+          headers: request.headers,
+        }),
+        SESSION_LOOKUP_TIMEOUT_MS,
+        AUTH_SESSION_LOOKUP_TIMEOUT_MESSAGE,
+      )
 
-    const user = (
-      session as { user?: { id?: unknown; email?: unknown } } | null
-    )?.user
+      const user = (
+        session as { user?: { id?: unknown; email?: unknown } } | null
+      )?.user
 
-    if (!user || typeof user.id !== 'string' || user.id.length === 0) {
-      return null
+      if (!user || typeof user.id !== 'string' || user.id.length === 0) {
+        return null
+      }
+
+      return {
+        id: user.id,
+        email: typeof user.email === 'string' ? user.email : null,
+      }
+    } catch (error) {
+      if (attempt >= SESSION_LOOKUP_MAX_ATTEMPTS) {
+        throw error
+      }
     }
-
-    return {
-      id: user.id,
-      email: typeof user.email === 'string' ? user.email : null,
-    }
-  } catch (error) {
-    console.warn('Auth session lookup failed; continuing as anonymous', error)
-    return null
   }
+
+  return null
 }
 
 const handleGetMyEntitlementsRequest = async (
@@ -1196,6 +1280,10 @@ const handleGetMyEntitlementsRequest = async (
     ensureAnonymousId: false,
     migrateAnonymousToUser: true,
   })
+
+  if (identity.authSessionLookupFailed) {
+    return respondAuthSessionUnavailable(identity.setCookieHeader)
+  }
 
   const libraryLimit = identity.isPaidUser
     ? MAX_PAID_USER_UPLOADS
@@ -1223,6 +1311,10 @@ const handleCopyTrackingRequest = async (
     ensureAnonymousId: false,
     migrateAnonymousToUser: true,
   })
+
+  if (identity.authSessionLookupFailed) {
+    return respondAuthSessionUnavailable(identity.setCookieHeader)
+  }
 
   const respond = (body: Record<string, unknown>, status: number): Response => {
     return withSetCookieHeader(
@@ -1403,6 +1495,10 @@ const handleGetMyUploadsRequest = async (
     migrateAnonymousToUser: true,
   })
 
+  if (identity.authSessionLookupFailed) {
+    return respondAuthSessionUnavailable(identity.setCookieHeader)
+  }
+
   const ownerScope = resolveOwnerScope(identity)
 
   if (!ownerScope) {
@@ -1530,6 +1626,10 @@ const handleDeleteMyUploadRequest = async (
     migrateAnonymousToUser: true,
   })
 
+  if (identity.authSessionLookupFailed) {
+    return respondAuthSessionUnavailable(identity.setCookieHeader)
+  }
+
   const ownerScope = resolveOwnerScope(identity)
 
   if (!ownerScope) {
@@ -1628,6 +1728,10 @@ const handleUploadRequest = async (
     migrateAnonymousToUser: true,
   })
 
+  if (identity.authSessionLookupFailed) {
+    return respondAuthSessionUnavailable(identity.setCookieHeader)
+  }
+
   const respondWithIdentity = (
     body: Record<string, unknown>,
     status: number,
@@ -1648,12 +1752,24 @@ const handleUploadRequest = async (
     return withSetCookieHeader(rateLimitResponse, identity.setCookieHeader)
   }
 
-  const formData = await request.formData()
+  let formData: FormData
+
+  try {
+    formData = await request.formData()
+  } catch {
+    return respondWithIdentity(
+      {
+        error: 'Failed to parse multipart upload payload.',
+      },
+      400,
+    )
+  }
+
   const batchSize = parseBatchSize(formData.get(PAID_MULTI_UPLOAD_BATCH_FIELD))
   const fileEntry = formData.get('file')
 
   if (!(fileEntry instanceof File)) {
-    return respondJson(
+    return respondWithIdentity(
       {
         error: "Missing file field. Send a multipart field named 'file'.",
       },
@@ -1662,7 +1778,7 @@ const handleUploadRequest = async (
   }
 
   if (fileEntry.size <= 0) {
-    return respondJson(
+    return respondWithIdentity(
       {
         error: 'Uploaded file is empty.',
       },
@@ -1671,7 +1787,7 @@ const handleUploadRequest = async (
   }
 
   if (fileEntry.size > MAX_UPLOAD_SIZE_BYTES) {
-    return respondJson(
+    return respondWithIdentity(
       {
         error: 'File too large. Maximum upload size is 15 MB.',
       },
@@ -1683,7 +1799,7 @@ const handleUploadRequest = async (
   const expectedExtension = MIME_TO_EXTENSION[mimeType]
 
   if (!expectedExtension) {
-    return respondJson(
+    return respondWithIdentity(
       {
         error: 'Unsupported image type. Allowed: PNG, JPEG, GIF, WEBP.',
       },
@@ -1695,7 +1811,7 @@ const handleUploadRequest = async (
   if (extension) {
     const extensionMimeType = EXTENSION_TO_MIME[extension]
     if (!extensionMimeType || extensionMimeType !== mimeType) {
-      return respondJson(
+      return respondWithIdentity(
         {
           error: 'File extension does not match MIME type.',
         },

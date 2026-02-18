@@ -27,20 +27,14 @@ const getD1Binding = (): unknown => {
   return undefined
 }
 
-const getSocialProviders = (): Record<
-  string,
-  {
-    clientId: string
-    clientSecret: string
-  }
-> => {
-  const providers: Record<
-    string,
-    {
-      clientId: string
-      clientSecret: string
-    }
-  > = {}
+type SocialProviderConfig = {
+  clientId: string
+  clientSecret: string
+  scope?: Array<string>
+}
+
+const getSocialProviders = (): Record<string, SocialProviderConfig> => {
+  const providers: Record<string, SocialProviderConfig> = {}
 
   const googleClientId = getEnvString('GOOGLE_CLIENT_ID')
   const googleClientSecret = getEnvString('GOOGLE_CLIENT_SECRET')
@@ -59,6 +53,7 @@ const getSocialProviders = (): Record<
     providers.discord = {
       clientId: discordClientId,
       clientSecret: discordClientSecret,
+      scope: ['identify', 'email'],
     }
   }
 
@@ -70,6 +65,12 @@ export const auth = betterAuth({
   baseURL: getEnvString('BETTER_AUTH_URL'),
   secret: getEnvString('BETTER_AUTH_SECRET'),
   database: getD1Binding() as never,
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5,
+    },
+  },
   emailAndPassword: {
     enabled: false,
   },
