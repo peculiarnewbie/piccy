@@ -8,17 +8,12 @@ export default function BetterAuthHeader() {
   return (
     <Show
       when={!session().isPending}
-      fallback={
-        <div class="h-8 w-8 rounded-full bg-surface-2 animate-pulse" />
-      }
+      fallback={<div class="h-8 w-8 rounded-full bg-surface-2 animate-pulse" />}
     >
       <Show
         when={session().data?.user}
         fallback={
-          <Link
-            to="/demo/better-auth"
-            class="btn btn-outline no-underline"
-          >
+          <Link to="/better-auth" class="btn btn-outline no-underline">
             Sign in
           </Link>
         }

@@ -71,10 +71,8 @@ export default function Header() {
             <span class="font-medium">Home</span>
           </Link>
 
-          {/* Demo Links Start */}
-
           <Link
-            to="/demo/better-auth"
+            to="/better-auth"
             onClick={() => setIsOpen(false)}
             class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
             activeProps={{
@@ -85,8 +83,6 @@ export default function Header() {
             <Globe size={20} />
             <span class="font-medium">Better Auth</span>
           </Link>
-
-          {/* Demo Links End */}
         </nav>
 
         <div class="p-4 border-t border-gray-700 bg-gray-800 flex flex-col gap-2">

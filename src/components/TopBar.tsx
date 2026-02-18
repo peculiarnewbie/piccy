@@ -41,7 +41,7 @@ export default function TopBar() {
           <Show
             when={session().data?.user}
             fallback={
-              <Link to="/demo/better-auth" class="btn btn-outline no-underline">
+              <Link to="/better-auth" class="btn btn-outline no-underline">
                 Sign in
               </Link>
             }

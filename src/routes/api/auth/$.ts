@@ -1,11 +1,25 @@
 import { createFileRoute } from '@tanstack/solid-router'
-import { auth } from '../../../lib/auth'
+import { getTanstackAuthForDatabase } from '../../../lib/auth'
+
+const getDatabaseBindingFromRuntime = (): unknown => {
+  const runtimeProcess = (
+    globalThis as { process?: { env?: Record<string, unknown> } }
+  ).process
+
+  return runtimeProcess?.env?.DB
+}
 
 export const Route = createFileRoute('/api/auth/$')({
   server: {
     handlers: {
-      GET: ({ request }) => auth.handler(request),
-      POST: ({ request }) => auth.handler(request),
+      GET: ({ request }) =>
+        getTanstackAuthForDatabase(getDatabaseBindingFromRuntime()).handler(
+          request,
+        ),
+      POST: ({ request }) =>
+        getTanstackAuthForDatabase(getDatabaseBindingFromRuntime()).handler(
+          request,
+        ),
     },
   },
 })

@@ -2,11 +2,11 @@ import { createFileRoute } from '@tanstack/solid-router'
 import { Show, createSignal } from 'solid-js'
 import { authClient } from '../lib/auth-client'
 
-export const Route = createFileRoute('/demo/better-auth')({
-  component: BetterAuthDemo,
+export const Route = createFileRoute('/better-auth')({
+  component: BetterAuthPage,
 })
 
-function BetterAuthDemo() {
+function BetterAuthPage() {
   const session = authClient.useSession()
   const [error, setError] = createSignal('')
   const [loadingProvider, setLoadingProvider] = createSignal<

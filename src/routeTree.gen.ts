@@ -11,8 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as BetterAuthRouteImport } from './routes/better-auth'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DemoBetterAuthRouteImport } from './routes/demo.better-auth'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const PricingRoute = PricingRouteImport.update({
@@ -25,14 +25,14 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BetterAuthRoute = BetterAuthRouteImport.update({
+  id: '/better-auth',
+  path: '/better-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoBetterAuthRoute = DemoBetterAuthRouteImport.update({
-  id: '/demo/better-auth',
-  path: '/demo/better-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -43,45 +43,45 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/better-auth': typeof BetterAuthRoute
   '/library': typeof LibraryRoute
   '/pricing': typeof PricingRoute
-  '/demo/better-auth': typeof DemoBetterAuthRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/better-auth': typeof BetterAuthRoute
   '/library': typeof LibraryRoute
   '/pricing': typeof PricingRoute
-  '/demo/better-auth': typeof DemoBetterAuthRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/better-auth': typeof BetterAuthRoute
   '/library': typeof LibraryRoute
   '/pricing': typeof PricingRoute
-  '/demo/better-auth': typeof DemoBetterAuthRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/library' | '/pricing' | '/demo/better-auth' | '/api/auth/$'
+  fullPaths: '/' | '/better-auth' | '/library' | '/pricing' | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/library' | '/pricing' | '/demo/better-auth' | '/api/auth/$'
+  to: '/' | '/better-auth' | '/library' | '/pricing' | '/api/auth/$'
   id:
     | '__root__'
     | '/'
+    | '/better-auth'
     | '/library'
     | '/pricing'
-    | '/demo/better-auth'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BetterAuthRoute: typeof BetterAuthRoute
   LibraryRoute: typeof LibraryRoute
   PricingRoute: typeof PricingRoute
-  DemoBetterAuthRoute: typeof DemoBetterAuthRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -101,18 +101,18 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/better-auth': {
+      id: '/better-auth'
+      path: '/better-auth'
+      fullPath: '/better-auth'
+      preLoaderRoute: typeof BetterAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/better-auth': {
-      id: '/demo/better-auth'
-      path: '/demo/better-auth'
-      fullPath: '/demo/better-auth'
-      preLoaderRoute: typeof DemoBetterAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -127,9 +127,9 @@ declare module '@tanstack/solid-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BetterAuthRoute: BetterAuthRoute,
   LibraryRoute: LibraryRoute,
   PricingRoute: PricingRoute,
-  DemoBetterAuthRoute: DemoBetterAuthRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

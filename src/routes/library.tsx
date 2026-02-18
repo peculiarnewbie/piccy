@@ -967,7 +967,7 @@ function LibraryWorkspace() {
 
   createEffect(
     on(
-      () => session().isPending ? undefined : session().data?.user?.id,
+      () => (session().isPending ? undefined : session().data?.user?.id),
       () => {
         void loadUploadEntitlements()
         void reloadLibrary()
@@ -1141,15 +1141,22 @@ function LibraryWorkspace() {
                 {(ent) => {
                   const used = () => ent().libraryUsage
                   const limit = () => ent().libraryLimit
-                  const pct = () => limit() > 0 ? Math.min(100, Math.round((used() / limit()) * 100)) : 0
+                  const pct = () =>
+                    limit() > 0
+                      ? Math.min(100, Math.round((used() / limit()) * 100))
+                      : 0
                   const isNearLimit = () => pct() >= 85
                   const isGuest = () => !session().data?.user
 
                   return (
                     <>
-                      <div class={`flex items-center gap-2.5 px-3 py-1.5 rounded-full border bg-surface-2 ${
-                        isNearLimit() ? 'border-accent/40' : 'border-border-heavy'
-                      }`}>
+                      <div
+                        class={`flex items-center gap-2.5 px-3 py-1.5 rounded-full border bg-surface-2 ${
+                          isNearLimit()
+                            ? 'border-accent/40'
+                            : 'border-border-heavy'
+                        }`}
+                      >
                         <div class="w-20 md:w-24 h-[6px] rounded-full bg-bg overflow-hidden">
                           <div
                             class={`h-full rounded-full transition-all duration-500 ${
@@ -1158,16 +1165,20 @@ function LibraryWorkspace() {
                             style={{ width: `${Math.max(pct(), 2)}%` }}
                           />
                         </div>
-                        <span class={`font-mono text-[10px] tracking-[0.5px] tabular-nums whitespace-nowrap ${
-                          isNearLimit() ? 'text-accent' : 'text-text-dim'
-                        }`}>
-                          {used().toLocaleString()}<span class="text-text-dim/50">/</span>{limit().toLocaleString()}
+                        <span
+                          class={`font-mono text-[10px] tracking-[0.5px] tabular-nums whitespace-nowrap ${
+                            isNearLimit() ? 'text-accent' : 'text-text-dim'
+                          }`}
+                        >
+                          {used().toLocaleString()}
+                          <span class="text-text-dim/50">/</span>
+                          {limit().toLocaleString()}
                         </span>
                       </div>
 
                       <Show when={isGuest()}>
                         <a
-                          href="/demo/better-auth"
+                          href="/better-auth"
                           class="group flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-accent/50 bg-accent/8 hover:bg-accent/15 hover:border-accent transition-all"
                         >
                           <svg

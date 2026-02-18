@@ -1,5 +1,5 @@
 import handler from '@tanstack/solid-start/server-entry'
-import { auth } from '../lib/auth'
+import { getAuthForDatabase } from '../lib/auth'
 
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024
 const MAX_ANONYMOUS_UPLOADS = 25
@@ -443,6 +443,47 @@ const getRuntimeEnv = (): Record<string, unknown> | undefined => {
   return runtimeProcess?.env
 }
 
+const setRuntimeEnvValue = (key: string, value: unknown): void => {
+  const runtimeGlobal = globalThis as {
+    process?: {
+      env?: Record<string, unknown>
+    }
+  }
+
+  if (!runtimeGlobal.process) {
+    runtimeGlobal.process = { env: {} }
+  }
+
+  if (!runtimeGlobal.process.env) {
+    runtimeGlobal.process.env = {}
+  }
+
+  runtimeGlobal.process.env[key] = value
+}
+
+const syncRuntimeEnvFromBindings = (env: Env): void => {
+  setRuntimeEnvValue('DB', env.DB)
+
+  const runtimeEnvVars = env as unknown as Record<string, unknown>
+  const authEnvKeys = [
+    'BETTER_AUTH_URL',
+    'BETTER_AUTH_SECRET',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'DISCORD_CLIENT_ID',
+    'DISCORD_CLIENT_SECRET',
+    'PAID_USER_IDS',
+    'PAID_USER_EMAILS',
+  ] as const
+
+  for (const key of authEnvKeys) {
+    const value = runtimeEnvVars[key]
+    if (typeof value === 'string') {
+      setRuntimeEnvValue(key, value)
+    }
+  }
+}
+
 const getRuntimeEnvString = (key: string): string | null => {
   const value = getRuntimeEnv()?.[key]
   if (typeof value !== 'string') {
@@ -697,7 +738,7 @@ const resolveRequestIdentity = async (
   let authSessionLookupFailed = false
 
   try {
-    authenticatedUser = await getAuthenticatedUser(request)
+    authenticatedUser = await getAuthenticatedUser(request, env)
   } catch (error) {
     if (requestHasAuthCookie) {
       authSessionLookupFailed = true
@@ -1239,12 +1280,14 @@ const withTimeout = async <T>(
 
 const getAuthenticatedUser = async (
   request: Request,
+  env: Env,
 ): Promise<AuthenticatedUser | null> => {
   for (let attempt = 1; attempt <= SESSION_LOOKUP_MAX_ATTEMPTS; attempt += 1) {
     try {
+      const auth = getAuthForDatabase(env.DB)
       const session = await withTimeout(
         auth.api.getSession({
-          headers: request.headers,
+          headers: new Headers(request.headers),
         }),
         SESSION_LOOKUP_TIMEOUT_MS,
         AUTH_SESSION_LOOKUP_TIMEOUT_MESSAGE,
@@ -2077,6 +2120,8 @@ const handlePublicImageRequest = async (
 
 export default {
   async fetch(request: Request, env: Env, context: WorkerExecutionContext) {
+    syncRuntimeEnvFromBindings(env)
+
     const url = new URL(request.url)
 
     const copyRouteMatch = url.pathname.match(/^\/api\/uploads\/([^/]+)\/copy$/)
