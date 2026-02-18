@@ -7,6 +7,7 @@ import {
   on,
   onCleanup,
   onMount,
+  type Accessor,
 } from 'solid-js'
 import { authClient } from '../lib/auth-client'
 
@@ -1105,7 +1106,7 @@ function LibraryWorkspace() {
   /* ── Render ── */
 
   return (
-    <div class="min-h-screen pt-[54px] animate-route-enter">
+    <div class="min-h-screen animate-route-enter" style={{ 'padding-top': 'var(--topbar-h)' }}>
       <input
         ref={fileInputRef}
         type="file"
@@ -1115,16 +1116,16 @@ function LibraryWorkspace() {
         onChange={onInputFileSelect}
       />
 
-      <div class="flex h-[calc(100vh-54px)]">
+      <div class="flex" style={{ height: 'calc(100vh - var(--topbar-h))' }}>
         {/* ── Library (primary content) ── */}
         <div class="flex-1 min-w-0 flex flex-col">
           {/* Library header */}
-          <div class="flex items-end justify-between gap-4 flex-wrap px-5 md:px-7 pt-5 pb-4 border-b-2 border-border">
+          <div class="flex items-end justify-between gap-3 flex-wrap px-3 md:px-7 pt-3 md:pt-5 pb-3 md:pb-4 border-b-2 border-border">
             <div>
-              <h1 class="text-[clamp(22px,3vw,30px)] font-[800] tracking-[-0.8px] leading-[1.15]">
+              <h1 class="text-[clamp(18px,3vw,30px)] font-[800] tracking-[-0.8px] leading-[1.15]">
                 Library
               </h1>
-              <p class="font-mono text-[12px] text-text-dim mt-1">
+              <p class="font-mono text-[11px] md:text-[12px] text-text-dim mt-0.5 md:mt-1">
                 Click an image to copy. Use URL, MD, or BB on each card.
               </p>
             </div>
@@ -1202,7 +1203,7 @@ function LibraryWorkspace() {
                   )
                 }}
               </Show>
-              <div class="flex items-center gap-2 rounded-full border border-border-heavy bg-surface-2 px-3 py-1.5">
+              <div class="hidden md:flex items-center gap-2 rounded-full border border-border-heavy bg-surface-2 px-3 py-1.5">
                 <span class="font-mono text-[10px] uppercase tracking-[1px] text-text-dim">
                   Zoom
                 </span>
@@ -1298,7 +1299,7 @@ function LibraryWorkspace() {
           {/* Library grid */}
           <div
             ref={libraryScrollRef}
-            class="flex-1 min-h-0 p-3 md:p-4 overflow-y-auto"
+            class="flex-1 min-h-0 p-2 md:p-4 overflow-y-auto"
             onScroll={maybeLoadNextPageFromScroll}
           >
             <Show
@@ -1436,17 +1437,17 @@ function LibraryWorkspace() {
                             <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 to-transparent opacity-65 group-hover:opacity-90 transition-opacity" />
 
                             <Show when={item.copyCount > 0}>
-                              <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim">
+                              <div class="absolute top-1 left-1 md:top-1.5 md:left-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim">
                                 {item.copyCount} copies
                               </div>
                             </Show>
 
-                            <div class="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim uppercase">
+                            <div class="absolute top-1 right-1 md:top-1.5 md:right-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim uppercase">
                               {item.mimeType.replace('image/', '')}
                             </div>
 
-                            <div class="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
-                              <div class="flex items-center gap-1 pointer-events-auto">
+                            <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                              <div class="pointer-events-auto">
                                 <FormatButton
                                   label="URL"
                                   active={getCardFormat(item.id) === 'direct'}
@@ -1459,44 +1460,18 @@ function LibraryWorkspace() {
                                     void copyLibraryItem(item, 'direct')
                                   }}
                                 />
-                                <FormatButton
-                                  label="MD"
-                                  active={getCardFormat(item.id) === 'markdown'}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    if (isDeleting()) {
-                                      return
-                                    }
-
-                                    void copyLibraryItem(item, 'markdown')
-                                  }}
-                                />
-                                <FormatButton
-                                  label="BB"
-                                  active={getCardFormat(item.id) === 'bbcode'}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    if (isDeleting()) {
-                                      return
-                                    }
-
-                                    void copyLibraryItem(item, 'bbcode')
-                                  }}
-                                />
                               </div>
 
-                              <button
-                                type="button"
-                                class="pointer-events-auto h-7 w-7 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-accent hover:border-accent transition-colors text-[13px] font-bold"
-                                disabled={isDeleting()}
-                                onClick={(event) => {
-                                  event.stopPropagation()
+                              <CardOverflowMenu
+                                item={item}
+                                isDeleting={isDeleting}
+                                onCopyFormat={(format) => {
+                                  void copyLibraryItem(item, format)
+                                }}
+                                onDelete={() => {
                                   void deleteUploadById(item.id)
                                 }}
-                                aria-label="Delete upload"
-                              >
-                                {isDeleting() ? '...' : 'x'}
-                              </button>
+                              />
                             </div>
                           </div>
                         )
@@ -1531,9 +1506,9 @@ function LibraryWorkspace() {
             onClick={() => setUploadPanelOpen(false)}
           />
 
-          <div class="fixed inset-0 top-[54px] z-50 flex flex-col bg-bg md:relative md:inset-auto md:top-auto md:z-auto md:w-[400px] md:shrink-0 md:border-l-2 md:border-border md:bg-surface animate-panel-in">
+          <div class="fixed inset-0 z-50 flex flex-col bg-bg md:relative md:inset-auto md:top-auto md:z-auto md:w-[400px] md:shrink-0 md:border-l-2 md:border-border md:bg-surface animate-panel-in" style={{ top: 'var(--topbar-h)' }}>
             {/* Panel header */}
-            <div class="flex items-center justify-between px-5 py-4 border-b-2 border-border">
+            <div class="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b-2 border-border">
               <div class="panel-label mb-0 flex-1">Upload</div>
               <button
                 type="button"
@@ -1556,10 +1531,10 @@ function LibraryWorkspace() {
             </div>
 
             {/* Panel body */}
-            <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+            <div class="flex-1 overflow-y-auto p-4 md:p-5 flex flex-col gap-3 md:gap-4">
               {/* Drop zone */}
               <div
-                class={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-200 ${
+                class={`border-2 border-dashed rounded-xl md:rounded-2xl flex flex-col items-center justify-center p-5 md:p-8 text-center cursor-pointer transition-all duration-200 ${
                   dragging()
                     ? 'border-accent bg-accent-dim'
                     : 'border-border-heavy bg-surface hover:border-accent hover:bg-accent-dim'
@@ -1582,13 +1557,13 @@ function LibraryWorkspace() {
                 onDrop={onDrop}
                 onClick={() => fileInputRef?.click()}
               >
-                <div class="w-12 h-12 rounded-full bg-accent-dim border-2 border-accent/25 flex items-center justify-center mb-4">
+                <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-accent-dim border-2 border-accent/25 flex items-center justify-center mb-3 md:mb-4">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    class="w-5 h-5 stroke-accent"
+                    class="w-4 h-4 md:w-5 md:h-5 stroke-accent"
                     stroke-width="2.5"
                   >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1596,14 +1571,14 @@ function LibraryWorkspace() {
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
                 </div>
-                <p class="text-base font-[800] mb-1">
+                <p class="text-sm md:text-base font-[800] mb-1">
                   {isUploading()
                     ? uploadQueueTotal() > 1
                       ? `Uploading ${uploadQueueIndex()}/${uploadQueueTotal()}...`
                       : 'Uploading...'
                     : 'Drop image(s) or click to browse'}
                 </p>
-                <p class="font-mono text-[13px] text-text-dim mb-4">
+                <p class="font-mono text-[11px] md:text-[13px] text-text-dim mb-3 md:mb-4">
                   <span class="kbd">Ctrl</span> + <span class="kbd">V</span> to
                   paste from clipboard
                 </p>
@@ -1731,7 +1706,7 @@ function FormatButton(props: {
   return (
     <button
       type="button"
-      class={`h-7 min-w-8 px-2 rounded-full border font-mono text-[10px] tracking-[0.4px] transition-colors ${
+      class={`h-6 min-w-7 px-1.5 rounded-full border font-mono text-[10px] tracking-[0.4px] transition-colors ${
         props.active
           ? 'border-accent bg-accent text-white'
           : 'border-border-heavy bg-surface/95 text-text-dim hover:text-text'
@@ -1740,6 +1715,90 @@ function FormatButton(props: {
     >
       {props.label}
     </button>
+  )
+}
+
+function CardOverflowMenu(props: {
+  item: LibraryItem
+  isDeleting: Accessor<boolean>
+  onCopyFormat: (format: CopyFormat) => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = createSignal(false)
+  let menuRef: HTMLDivElement | undefined
+
+  const closeMenu = () => setOpen(false)
+
+  onMount(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!open()) return
+      if (menuRef && !menuRef.contains(event.target as Node)) {
+        closeMenu()
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside, true)
+    onCleanup(() => {
+      document.removeEventListener('click', handleClickOutside, true)
+    })
+  })
+
+  return (
+    <div ref={menuRef} class="pointer-events-auto relative">
+      <button
+        type="button"
+        class="h-6 w-6 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-text hover:border-text-dim transition-colors font-mono text-[12px] font-bold leading-none flex items-center justify-center"
+        onClick={(event) => {
+          event.stopPropagation()
+          setOpen((v) => !v)
+        }}
+        aria-label="More options"
+      >
+        ...
+      </button>
+
+      <Show when={open()}>
+        <div class="absolute bottom-full right-0 mb-1.5 w-[120px] rounded-lg border-2 border-border-heavy bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-10">
+          <button
+            type="button"
+            class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
+            onClick={(event) => {
+              event.stopPropagation()
+              props.onCopyFormat('markdown')
+              closeMenu()
+            }}
+          >
+            Copy as MD
+          </button>
+          <button
+            type="button"
+            class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
+            onClick={(event) => {
+              event.stopPropagation()
+              props.onCopyFormat('bbcode')
+              closeMenu()
+            }}
+          >
+            Copy as BB
+          </button>
+          <Show when={!props.item.isSeeded}>
+            <div class="border-t border-border" />
+            <button
+              type="button"
+              class="w-full text-left px-3 py-2 font-mono text-[11px] text-accent hover:bg-accent-dim transition-colors"
+              disabled={props.isDeleting()}
+              onClick={(event) => {
+                event.stopPropagation()
+                closeMenu()
+                props.onDelete()
+              }}
+            >
+              {props.isDeleting() ? 'Deleting...' : 'Delete'}
+            </button>
+          </Show>
+        </div>
+      </Show>
+    </div>
   )
 }
 

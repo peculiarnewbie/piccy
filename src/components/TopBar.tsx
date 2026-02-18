@@ -6,11 +6,11 @@ export default function TopBar() {
   const session = authClient.useSession()
 
   return (
-    <nav class="fixed top-0 left-0 right-0 h-[54px] flex items-center justify-between px-5 bg-surface border-b-2 border-border z-50">
+    <nav class="fixed top-0 left-0 right-0 h-[46px] md:h-[54px] flex items-center justify-between px-3 md:px-5 bg-surface border-b-2 border-border z-50">
       {/* Left: Logo */}
       <Link
         to="/"
-        class="font-display font-[800] text-[21px] tracking-[-0.8px] lowercase no-underline text-text"
+        class="font-display font-[800] text-[18px] md:text-[21px] tracking-[-0.8px] lowercase no-underline text-text"
       >
         piccy<span class="text-accent italic">!</span>
       </Link>

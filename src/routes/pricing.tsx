@@ -6,7 +6,7 @@ export const Route = createFileRoute('/pricing')({
 
 function PricingRoute() {
   return (
-    <div class="min-h-screen pt-[54px] flex items-center justify-center px-5 py-12 animate-route-enter">
+    <div class="min-h-screen flex items-center justify-center px-4 md:px-5 py-8 md:py-12 animate-route-enter" style={{ 'padding-top': 'calc(var(--topbar-h) + 32px)' }}>
       {/* Ambient glow behind the card */}
       <div class="absolute inset-0 pointer-events-none overflow-hidden">
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-accent/[0.04] blur-[120px]" />

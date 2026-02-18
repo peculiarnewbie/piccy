@@ -85,6 +85,13 @@ body {
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  --topbar-h: 46px;
+}
+
+@media (min-width: 768px) {
+  body {
+    --topbar-h: 54px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -108,16 +115,24 @@ code {
 @layer components {
   .btn {
     font-family: var(--font-display);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    padding: 7px 18px;
+    padding: 5px 14px;
     border-radius: 100px;
     cursor: pointer;
     transition: all 0.15s;
     border: 2px solid;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+  }
+
+  @media (min-width: 768px) {
+    .btn {
+      font-size: 13px;
+      padding: 7px 18px;
+      gap: 6px;
+    }
   }
 
   .btn-accent {
@@ -144,15 +159,22 @@ code {
 
   .tab {
     font-family: var(--font-display);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    padding: 6px 16px;
+    padding: 4px 12px;
     border-radius: 100px;
     color: var(--color-text-dim);
     background: none;
     border: 2px solid transparent;
     cursor: pointer;
     transition: all 0.15s;
+  }
+
+  @media (min-width: 768px) {
+    .tab {
+      font-size: 13px;
+      padding: 6px 16px;
+    }
   }
 
   .tab:hover {

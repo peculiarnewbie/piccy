@@ -6,6 +6,7 @@ import {
   createSignal,
   onCleanup,
   onMount,
+  type Accessor,
 } from 'solid-js'
 import { authClient } from '../lib/auth-client'
 
@@ -1035,8 +1036,8 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
 
   if (isLibraryRoute()) {
     return (
-      <div class="min-h-screen px-5 pt-[74px] pb-6 md:px-7 md:pt-[80px] md:pb-7 animate-route-enter">
-        <div class="mx-auto max-w-[1280px] h-[calc(100vh-110px)] min-h-[440px] flex flex-col gap-5">
+      <div class="min-h-screen px-3 pb-4 md:px-7 md:pb-7 animate-route-enter" style={{ 'padding-top': 'calc(var(--topbar-h) + 16px)' }}>
+        <div class="mx-auto max-w-[1280px] min-h-[440px] flex flex-col gap-4 md:gap-5" style={{ height: 'calc(100vh - var(--topbar-h) - 48px)' }}>
           <div class="flex items-end justify-between gap-5 flex-wrap border-b-2 border-border pb-4">
             <div>
               <h1 class="text-[clamp(24px,3.5vw,34px)] font-[800] tracking-[-0.9px] leading-[1.15]">
@@ -1182,17 +1183,17 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                               <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 to-transparent opacity-65 group-hover:opacity-90 transition-opacity" />
 
                               <Show when={item.copyCount > 0}>
-                                <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim">
+                                <div class="absolute top-1 left-1 md:top-1.5 md:left-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim">
                                   {item.copyCount} copies
                                 </div>
                               </Show>
 
-                              <div class="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim uppercase">
+                              <div class="absolute top-1 right-1 md:top-1.5 md:right-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim uppercase">
                                 {item.mimeType.replace('image/', '')}
                               </div>
 
-                              <div class="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
-                                <div class="flex items-center gap-1 pointer-events-auto">
+                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                                <div class="pointer-events-auto">
                                   <FormatButton
                                     label="URL"
                                     active={getCardFormat(item.id) === 'direct'}
@@ -1205,48 +1206,18 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                                       void copyLibraryItem(item, 'direct')
                                     }}
                                   />
-                                  <FormatButton
-                                    label="MD"
-                                    active={
-                                      getCardFormat(item.id) === 'markdown'
-                                    }
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      if (isDeleting()) {
-                                        return
-                                      }
-
-                                      void copyLibraryItem(item, 'markdown')
-                                    }}
-                                  />
-                                  <FormatButton
-                                    label="BB"
-                                    active={getCardFormat(item.id) === 'bbcode'}
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      if (isDeleting()) {
-                                        return
-                                      }
-
-                                      void copyLibraryItem(item, 'bbcode')
-                                    }}
-                                  />
                                 </div>
 
-                                <Show when={!item.isSeeded}>
-                                  <button
-                                    type="button"
-                                    class="pointer-events-auto h-7 w-7 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-accent hover:border-accent transition-colors text-[13px] font-bold"
-                                    disabled={isDeleting()}
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      void deleteUploadById(item.id)
-                                    }}
-                                    aria-label="Delete upload"
-                                  >
-                                    {isDeleting() ? '...' : 'x'}
-                                  </button>
-                                </Show>
+                                <CardOverflowMenu
+                                  item={item}
+                                  isDeleting={isDeleting}
+                                  onCopyFormat={(format) => {
+                                    void copyLibraryItem(item, format)
+                                  }}
+                                  onDelete={() => {
+                                    void deleteUploadById(item.id)
+                                  }}
+                                />
                               </div>
                             </div>
                           )
@@ -1296,7 +1267,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
   }
 
   return (
-    <div class="pt-[54px] min-h-screen flex flex-col animate-route-enter">
+    <div class="min-h-screen flex flex-col animate-route-enter" style={{ 'padding-top': 'var(--topbar-h)' }}>
       <input
         ref={fileInputRef}
         type="file"
@@ -1305,12 +1276,12 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
         onChange={onInputFileSelect}
       />
 
-      <div class="px-7 py-7 border-b-2 border-border flex items-end justify-between gap-6 flex-wrap bg-surface animate-slide-up">
+      <div class="px-4 py-4 md:px-7 md:py-7 border-b-2 border-border flex items-end justify-between gap-4 md:gap-6 flex-wrap bg-surface animate-slide-up">
         <div>
-          <h1 class="text-[clamp(22px,3.5vw,30px)] font-[800] tracking-[-0.8px] mb-1 leading-[1.2]">
+          <h1 class="text-[clamp(18px,3.5vw,30px)] font-[800] tracking-[-0.8px] mb-0.5 md:mb-1 leading-[1.2]">
             Grab, drop, share. <em class="italic text-accent">Repeat.</em>
           </h1>
-          <p class="font-mono text-sm text-text-dim">
+          <p class="font-mono text-[12px] md:text-sm text-text-dim">
             A clipboard for your images.
           </p>
         </div>
@@ -1335,9 +1306,9 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
       </div>
 
       <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.3fr_1fr] min-h-0">
-        <div class="p-6 flex flex-col border-r-0 md:border-r-2 border-b-2 md:border-b-0 border-border bg-surface animate-slide-up [animation-delay:80ms]">
+        <div class="p-3 md:p-6 flex flex-col border-r-0 md:border-r-2 border-b-2 md:border-b-0 border-border bg-surface animate-slide-up [animation-delay:80ms]">
           <div class="panel-label">Click any to copy its link</div>
-          <div class="flex-1 min-h-[300px] bg-bg border-2 border-border-heavy rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+          <div class="flex-1 min-h-[220px] md:min-h-[300px] bg-bg border-2 border-border-heavy rounded-xl md:rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
             <div class="h-[34px] bg-surface-2 border-b-2 border-border flex items-center px-3.5 gap-1.5">
               <div class="w-[9px] h-[9px] rounded-full bg-accent" />
               <div class="w-[9px] h-[9px] rounded-full bg-secondary" />
@@ -1469,17 +1440,17 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                               <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 to-transparent opacity-65 group-hover:opacity-90 transition-opacity" />
 
                               <Show when={item.copyCount > 0}>
-                                <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim">
+                                <div class="absolute top-1 left-1 md:top-1.5 md:left-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim">
                                   {item.copyCount} copies
                                 </div>
                               </Show>
 
-                              <div class="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[10px] text-text-dim uppercase">
+                              <div class="absolute top-1 right-1 md:top-1.5 md:right-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim uppercase">
                                 {item.mimeType.replace('image/', '')}
                               </div>
 
-                              <div class="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
-                                <div class="flex items-center gap-1 pointer-events-auto">
+                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                                <div class="pointer-events-auto">
                                   <FormatButton
                                     label="URL"
                                     active={getCardFormat(item.id) === 'direct'}
@@ -1492,48 +1463,18 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                                       void copyLibraryItem(item, 'direct')
                                     }}
                                   />
-                                  <FormatButton
-                                    label="MD"
-                                    active={
-                                      getCardFormat(item.id) === 'markdown'
-                                    }
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      if (isDeleting()) {
-                                        return
-                                      }
-
-                                      void copyLibraryItem(item, 'markdown')
-                                    }}
-                                  />
-                                  <FormatButton
-                                    label="BB"
-                                    active={getCardFormat(item.id) === 'bbcode'}
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      if (isDeleting()) {
-                                        return
-                                      }
-
-                                      void copyLibraryItem(item, 'bbcode')
-                                    }}
-                                  />
                                 </div>
 
-                                <Show when={!item.isSeeded}>
-                                  <button
-                                    type="button"
-                                    class="pointer-events-auto h-7 w-7 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-accent hover:border-accent transition-colors text-[13px] font-bold"
-                                    disabled={isDeleting()}
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      void deleteUploadById(item.id)
-                                    }}
-                                    aria-label="Delete upload"
-                                  >
-                                    {isDeleting() ? '...' : 'x'}
-                                  </button>
-                                </Show>
+                                <CardOverflowMenu
+                                  item={item}
+                                  isDeleting={isDeleting}
+                                  onCopyFormat={(format) => {
+                                    void copyLibraryItem(item, format)
+                                  }}
+                                  onDelete={() => {
+                                    void deleteUploadById(item.id)
+                                  }}
+                                />
                               </div>
                             </div>
                           )
@@ -1565,11 +1506,11 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
           </p>
         </div>
 
-        <div class="p-6 flex flex-col animate-slide-up [animation-delay:160ms]">
+        <div class="p-3 md:p-6 flex flex-col animate-slide-up [animation-delay:160ms]">
           <div class="panel-label">Drop zone</div>
 
           <div
-            class={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-200 ${
+            class={`flex-1 border-2 border-dashed rounded-xl md:rounded-2xl flex flex-col items-center justify-center p-5 md:p-8 text-center cursor-pointer transition-all duration-200 ${
               dragging()
                 ? 'border-accent bg-accent-dim'
                 : 'border-border-heavy bg-surface hover:border-accent hover:bg-accent-dim'
@@ -1592,13 +1533,13 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
             onDrop={onDrop}
             onClick={() => fileInputRef?.click()}
           >
-            <div class="w-12 h-12 rounded-full bg-accent-dim border-2 border-accent/25 flex items-center justify-center mb-4">
+            <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-accent-dim border-2 border-accent/25 flex items-center justify-center mb-3 md:mb-4">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                class="w-5 h-5 stroke-accent"
+                class="w-4 h-4 md:w-5 md:h-5 stroke-accent"
                 stroke-width="2.5"
               >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1606,10 +1547,10 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
             </div>
-            <p class="text-base font-[800] mb-1">
+            <p class="text-sm md:text-base font-[800] mb-1">
               {isUploading() ? 'Uploading...' : 'Drop image or click to browse'}
             </p>
-            <p class="font-mono text-[13px] text-text-dim mb-5">
+            <p class="font-mono text-[11px] md:text-[13px] text-text-dim mb-3 md:mb-5">
               <span class="kbd">Ctrl</span> + <span class="kbd">V</span> to
               paste from clipboard
             </p>
@@ -1687,48 +1628,48 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
             )}
           </Show>
 
-          <div class="mt-4 flex flex-col gap-2">
-            <div class="flex items-center gap-2.5 text-[13px] font-semibold text-text-dim p-2.5 px-3.5 bg-surface border-2 border-border rounded-xl transition-all hover:border-border-heavy">
-              <div class="w-[22px] h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
+          <div class="mt-3 md:mt-4 flex flex-col gap-1.5 md:gap-2">
+            <div class="flex items-center gap-2 text-[12px] md:text-[13px] font-semibold text-text-dim p-2 px-3 md:p-2.5 md:px-3.5 bg-surface border-2 border-border rounded-lg md:rounded-xl transition-all hover:border-border-heavy">
+              <div class="w-[18px] h-[18px] md:w-[22px] md:h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  class="w-[11px] h-[11px] stroke-accent stroke-[3]"
+                  class="w-[9px] h-[9px] md:w-[11px] md:h-[11px] stroke-accent stroke-[3]"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
               One click = link copied to clipboard
             </div>
-            <div class="flex items-center gap-2.5 text-[13px] font-semibold text-text-dim p-2.5 px-3.5 bg-surface border-2 border-border rounded-xl transition-all hover:border-border-heavy">
-              <div class="w-[22px] h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
+            <div class="flex items-center gap-2 text-[12px] md:text-[13px] font-semibold text-text-dim p-2 px-3 md:p-2.5 md:px-3.5 bg-surface border-2 border-border rounded-lg md:rounded-xl transition-all hover:border-border-heavy">
+              <div class="w-[18px] h-[18px] md:w-[22px] md:h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  class="w-[11px] h-[11px] stroke-accent stroke-[3]"
+                  class="w-[9px] h-[9px] md:w-[11px] md:h-[11px] stroke-accent stroke-[3]"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
               URL, Markdown, and BBCode formats
             </div>
-            <div class="flex items-center gap-2.5 text-[13px] font-semibold text-text-dim p-2.5 px-3.5 bg-surface border-2 border-border rounded-xl transition-all hover:border-border-heavy">
-              <div class="w-[22px] h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
+            <div class="flex items-center gap-2 text-[12px] md:text-[13px] font-semibold text-text-dim p-2 px-3 md:p-2.5 md:px-3.5 bg-surface border-2 border-border rounded-lg md:rounded-xl transition-all hover:border-border-heavy">
+              <div class="w-[18px] h-[18px] md:w-[22px] md:h-[22px] rounded-full bg-accent-dim flex items-center justify-center shrink-0">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  class="w-[11px] h-[11px] stroke-accent stroke-[3]"
+                  class="w-[9px] h-[9px] md:w-[11px] md:h-[11px] stroke-accent stroke-[3]"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              Guests get 50 library slots; sign in for permanent storage
+              Guests get 50 library slots; sign in for more
             </div>
           </div>
         </div>
@@ -1763,7 +1704,7 @@ function FormatButton(props: {
   return (
     <button
       type="button"
-      class={`h-7 min-w-8 px-2 rounded-full border font-mono text-[10px] tracking-[0.4px] transition-colors ${
+      class={`h-6 min-w-7 px-1.5 rounded-full border font-mono text-[10px] tracking-[0.4px] transition-colors ${
         props.active
           ? 'border-accent bg-accent text-white'
           : 'border-border-heavy bg-surface/95 text-text-dim hover:text-text'
@@ -1772,6 +1713,90 @@ function FormatButton(props: {
     >
       {props.label}
     </button>
+  )
+}
+
+function CardOverflowMenu(props: {
+  item: LibraryItem
+  isDeleting: Accessor<boolean>
+  onCopyFormat: (format: CopyFormat) => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = createSignal(false)
+  let menuRef: HTMLDivElement | undefined
+
+  const closeMenu = () => setOpen(false)
+
+  onMount(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!open()) return
+      if (menuRef && !menuRef.contains(event.target as Node)) {
+        closeMenu()
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside, true)
+    onCleanup(() => {
+      document.removeEventListener('click', handleClickOutside, true)
+    })
+  })
+
+  return (
+    <div ref={menuRef} class="pointer-events-auto relative">
+      <button
+        type="button"
+        class="h-6 w-6 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-text hover:border-text-dim transition-colors font-mono text-[12px] font-bold leading-none flex items-center justify-center"
+        onClick={(event) => {
+          event.stopPropagation()
+          setOpen((v) => !v)
+        }}
+        aria-label="More options"
+      >
+        ...
+      </button>
+
+      <Show when={open()}>
+        <div class="absolute bottom-full right-0 mb-1.5 w-[120px] rounded-lg border-2 border-border-heavy bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-10">
+          <button
+            type="button"
+            class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
+            onClick={(event) => {
+              event.stopPropagation()
+              props.onCopyFormat('markdown')
+              closeMenu()
+            }}
+          >
+            Copy as MD
+          </button>
+          <button
+            type="button"
+            class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
+            onClick={(event) => {
+              event.stopPropagation()
+              props.onCopyFormat('bbcode')
+              closeMenu()
+            }}
+          >
+            Copy as BB
+          </button>
+          <Show when={!props.item.isSeeded}>
+            <div class="border-t border-border" />
+            <button
+              type="button"
+              class="w-full text-left px-3 py-2 font-mono text-[11px] text-accent hover:bg-accent-dim transition-colors"
+              disabled={props.isDeleting()}
+              onClick={(event) => {
+                event.stopPropagation()
+                closeMenu()
+                props.onDelete()
+              }}
+            >
+              {props.isDeleting() ? 'Deleting...' : 'Delete'}
+            </button>
+          </Show>
+        </div>
+      </Show>
+    </div>
   )
 }
 
