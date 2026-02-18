@@ -13,10 +13,6 @@ function PricingRoute() {
       </div>
 
       <div class="relative w-full max-w-[400px]">
-        <p class="text-center font-mono text-[12px] text-text-dim mb-5">
-          2 cents a day. Your couch has more.
-        </p>
-
         {/* Decorative corner accents */}
         <div class="absolute -top-px -left-px w-6 h-6 border-t-2 border-l-2 border-accent/50 rounded-tl-2xl pointer-events-none" />
         <div class="absolute -top-px -right-px w-6 h-6 border-t-2 border-r-2 border-accent/50 rounded-tr-2xl pointer-events-none" />
@@ -26,10 +22,6 @@ function PricingRoute() {
         <div class="border-2 border-border-heavy rounded-2xl bg-surface overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,107,107,0.06)]">
           {/* Header */}
           <div class="px-7 pt-8 pb-6 text-center border-b-2 border-border">
-            <div class="inline-block px-3 py-1 rounded-full border border-border-heavy bg-surface-2 font-mono text-[10px] uppercase tracking-[1.5px] text-text-dim mb-5">
-              One plan. That's it.
-            </div>
-
             <div class="flex items-baseline justify-center gap-1.5">
               <span class="text-[52px] font-[800] tracking-[-2.5px] leading-none text-text">
                 $8
@@ -38,9 +30,17 @@ function PricingRoute() {
             </div>
 
             <div class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-mint/[0.08] border border-mint/20">
-              <span class="font-mono text-[12px] text-mint font-medium">$0.67/mo</span>
-              <span class="font-mono text-[11px] text-text-dim">— billed yearly</span>
+              <span class="font-mono text-[12px] text-mint font-medium">
+                $0.67/mo
+              </span>
+              <span class="font-mono text-[11px] text-text-dim">
+                — billed yearly
+              </span>
             </div>
+
+            <p class="text-center font-mono text-[11px] text-text-dim mt-3">
+              Cancel anytime. No questions asked.
+            </p>
           </div>
 
           {/* Features */}
@@ -70,8 +70,8 @@ function PricingRoute() {
             >
               Get Piccy
             </button>
-            <p class="text-center font-mono text-[11px] text-text-dim mt-3">
-              Cancel anytime. No questions asked.
+            <p class="text-center font-mono text-[12px] text-text-dim my-2">
+              2 cents a day. Your couch has more.
             </p>
           </div>
         </div>

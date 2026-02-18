@@ -74,6 +74,8 @@ const LIBRARY_SKELETON_HEIGHTS = [
   74, 122, 98, 146, 84, 136, 112, 158, 92, 128, 104, 150,
 ]
 
+const LIBRARY_ZOOM_DEFAULT = 0
+
 /* ── Helpers ── */
 
 class UploadRequestError extends Error {
@@ -374,6 +376,62 @@ const isTextInputTarget = (target: EventTarget | null): boolean => {
   return target.isContentEditable
 }
 
+const clampNumber = (value: number, min: number, max: number): number => {
+  return Math.min(max, Math.max(min, value))
+}
+
+const getBaseLibraryColumnCount = (width: number): number => {
+  if (width >= 1280) {
+    return 4
+  }
+
+  if (width >= 768) {
+    return 3
+  }
+
+  return 2
+}
+
+const getMaxLibraryColumnCount = (width: number): number => {
+  if (width >= 1280) {
+    return 7
+  }
+
+  if (width >= 768) {
+    return 5
+  }
+
+  return 4
+}
+
+const getMinLibraryColumnCount = (width: number): number => {
+  if (width >= 1280) {
+    return 3
+  }
+
+  if (width >= 768) {
+    return 2
+  }
+
+  return 1
+}
+
+const getLibraryZoomBounds = (
+  width: number,
+): {
+  minOffset: number
+  maxOffset: number
+} => {
+  const baseColumnCount = getBaseLibraryColumnCount(width)
+  const maxColumnCount = getMaxLibraryColumnCount(width)
+  const minColumnCount = getMinLibraryColumnCount(width)
+
+  return {
+    minOffset: baseColumnCount - maxColumnCount,
+    maxOffset: baseColumnCount - minColumnCount,
+  }
+}
+
 /* ── Component ── */
 
 function LibraryWorkspace() {
@@ -395,12 +453,15 @@ function LibraryWorkspace() {
   const [uploadPanelOpen, setUploadPanelOpen] = createSignal(false)
 
   const [libraryItems, setLibraryItems] = createSignal<Array<LibraryItem>>([])
-  const [libraryNextCursor, setLibraryNextCursor] = createSignal<
-    string | null
-  >(null)
+  const [libraryNextCursor, setLibraryNextCursor] = createSignal<string | null>(
+    null,
+  )
   const [libraryError, setLibraryError] = createSignal('')
   const [libraryLoadingInitial, setLibraryLoadingInitial] = createSignal(true)
   const [libraryLoadingMore, setLibraryLoadingMore] = createSignal(false)
+  const [libraryZoomOffset, setLibraryZoomOffset] =
+    createSignal(LIBRARY_ZOOM_DEFAULT)
+  const [viewportWidth, setViewportWidth] = createSignal(1280)
 
   const [cardFormats, setCardFormats] = createSignal<
     Partial<Record<string, CopyFormat>>
@@ -466,6 +527,37 @@ function LibraryWorkspace() {
     return cardFormats()[uploadId] ?? 'direct'
   }
 
+  const getLibraryColumnCount = (): number => {
+    const width = viewportWidth()
+    const baseColumnCount = getBaseLibraryColumnCount(width)
+    const zoomBounds = getLibraryZoomBounds(width)
+    const zoomOffset = clampNumber(
+      libraryZoomOffset(),
+      zoomBounds.minOffset,
+      zoomBounds.maxOffset,
+    )
+
+    return baseColumnCount - zoomOffset
+  }
+
+  const setLibraryZoom = (nextZoomOffset: number): void => {
+    const zoomBounds = getLibraryZoomBounds(viewportWidth())
+
+    setLibraryZoomOffset(
+      clampNumber(nextZoomOffset, zoomBounds.minOffset, zoomBounds.maxOffset),
+    )
+  }
+
+  const canZoomOut = (): boolean => {
+    const zoomBounds = getLibraryZoomBounds(viewportWidth())
+    return libraryZoomOffset() > zoomBounds.minOffset
+  }
+
+  const canZoomIn = (): boolean => {
+    const zoomBounds = getLibraryZoomBounds(viewportWidth())
+    return libraryZoomOffset() < zoomBounds.maxOffset
+  }
+
   const setCardFormat = (uploadId: string, format: CopyFormat) => {
     setCardFormats((current) => ({
       ...current,
@@ -483,11 +575,7 @@ function LibraryWorkspace() {
       pushToast('success', label)
 
       if (tracking && session().data?.user) {
-        void trackCopyEvent(
-          tracking.uploadId,
-          tracking.format,
-          tracking.source,
-        )
+        void trackCopyEvent(tracking.uploadId, tracking.format, tracking.source)
       }
     } catch {
       pushToast('error', 'Copy failed. Please copy manually.')
@@ -686,11 +774,7 @@ function LibraryWorkspace() {
         setProgress(0)
 
         try {
-          const payload = await uploadWithRetry(
-            file,
-            setProgress,
-            files.length,
-          )
+          const payload = await uploadWithRetry(file, setProgress, files.length)
           uploadedPayloads.push(payload)
         } catch (error) {
           const message =
@@ -888,8 +972,22 @@ function LibraryWorkspace() {
     void loadUploadEntitlements()
   })
 
+  createEffect(() => {
+    const zoomBounds = getLibraryZoomBounds(viewportWidth())
+
+    setLibraryZoomOffset((current) =>
+      clampNumber(current, zoomBounds.minOffset, zoomBounds.maxOffset),
+    )
+  })
+
   onMount(() => {
     void reloadLibrary()
+
+    const handleWindowResize = () => {
+      setViewportWidth(window.innerWidth)
+    }
+
+    handleWindowResize()
 
     const handlePaste = (event: ClipboardEvent) => {
       const items = event.clipboardData?.items
@@ -978,10 +1076,12 @@ function LibraryWorkspace() {
       }
     }
 
+    window.addEventListener('resize', handleWindowResize)
     window.addEventListener('paste', handlePaste)
     window.addEventListener('keydown', handleWindowKeyDown)
 
     onCleanup(() => {
+      window.removeEventListener('resize', handleWindowResize)
       window.removeEventListener('paste', handlePaste)
       window.removeEventListener('keydown', handleWindowKeyDown)
     })
@@ -1027,6 +1127,57 @@ function LibraryWorkspace() {
             <div class="flex items-center gap-2.5 flex-wrap">
               <div class="px-3 py-1.5 rounded-full border border-border-heavy bg-surface-2 font-mono text-[11px] uppercase tracking-[1px] text-text-dim">
                 Guests: 50 items
+              </div>
+              <div class="flex items-center gap-2 rounded-full border border-border-heavy bg-surface-2 px-3 py-1.5">
+                <span class="font-mono text-[10px] uppercase tracking-[1px] text-text-dim">
+                  Zoom
+                </span>
+                <button
+                  type="button"
+                  class={`h-6 w-6 rounded-full border bg-surface transition-colors ${
+                    canZoomOut()
+                      ? 'border-border-heavy text-text-dim hover:text-text hover:border-text-dim'
+                      : 'border-border text-text-dim/45 cursor-not-allowed'
+                  }`}
+                  onClick={() => setLibraryZoom(libraryZoomOffset() - 1)}
+                  disabled={!canZoomOut()}
+                  aria-label="Zoom out library grid"
+                >
+                  -
+                </button>
+                <input
+                  type="range"
+                  min={getLibraryZoomBounds(viewportWidth()).minOffset}
+                  max={getLibraryZoomBounds(viewportWidth()).maxOffset}
+                  step="1"
+                  value={libraryZoomOffset()}
+                  class="w-20 md:w-24 accent-accent"
+                  onInput={(event) => {
+                    const nextValue = Number(event.currentTarget.value)
+                    if (Number.isNaN(nextValue)) {
+                      return
+                    }
+
+                    setLibraryZoom(nextValue)
+                  }}
+                  aria-label="Adjust library zoom"
+                />
+                <button
+                  type="button"
+                  class={`h-6 w-6 rounded-full border bg-surface transition-colors ${
+                    canZoomIn()
+                      ? 'border-border-heavy text-text-dim hover:text-text hover:border-text-dim'
+                      : 'border-border text-text-dim/45 cursor-not-allowed'
+                  }`}
+                  onClick={() => setLibraryZoom(libraryZoomOffset() + 1)}
+                  disabled={!canZoomIn()}
+                  aria-label="Zoom in library grid"
+                >
+                  +
+                </button>
+                <span class="min-w-[52px] text-right font-mono text-[10px] uppercase tracking-[1px] text-text-dim">
+                  {getLibraryColumnCount()} cols
+                </span>
               </div>
               <button
                 type="button"
@@ -1079,7 +1230,10 @@ function LibraryWorkspace() {
             <Show
               when={!libraryLoadingInitial()}
               fallback={
-                <div class="columns-2 md:columns-3 xl:columns-4 gap-2 [column-fill:_balance]">
+                <div
+                  class="gap-2 [column-fill:_balance]"
+                  style={{ 'column-count': getLibraryColumnCount() }}
+                >
                   <For each={LIBRARY_SKELETON_HEIGHTS}>
                     {(height) => (
                       <div
@@ -1117,9 +1271,7 @@ function LibraryWorkspace() {
                   fallback={
                     <div class="h-full flex items-center justify-center text-center px-6">
                       <div>
-                        <p class="text-base font-[800] mb-1">
-                          No uploads yet
-                        </p>
+                        <p class="text-base font-[800] mb-1">No uploads yet</p>
                         <p class="font-mono text-[12px] text-text-dim mb-4">
                           Paste, drop, or click Upload to add your first image.
                         </p>
@@ -1146,7 +1298,10 @@ function LibraryWorkspace() {
                     </div>
                   }
                 >
-                  <div class="columns-2 md:columns-3 xl:columns-4 gap-2 [column-fill:_balance]">
+                  <div
+                    class="gap-2 [column-fill:_balance]"
+                    style={{ 'column-count': getLibraryColumnCount() }}
+                  >
                     <For each={libraryItems()}>
                       {(item, index) => {
                         const isFocused = () => focusedIndex() === index()
@@ -1180,16 +1335,10 @@ function LibraryWorkspace() {
                                 return
                               }
 
-                              void copyLibraryItem(
-                                item,
-                                getCardFormat(item.id),
-                              )
+                              void copyLibraryItem(item, getCardFormat(item.id))
                             }}
                             onKeyDown={(event) => {
-                              if (
-                                event.key === 'Enter' ||
-                                event.key === ' '
-                              ) {
+                              if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault()
                                 if (isDeleting()) {
                                   return
@@ -1226,9 +1375,7 @@ function LibraryWorkspace() {
                               <div class="flex items-center gap-1 pointer-events-auto">
                                 <FormatButton
                                   label="URL"
-                                  active={
-                                    getCardFormat(item.id) === 'direct'
-                                  }
+                                  active={getCardFormat(item.id) === 'direct'}
                                   onClick={(event) => {
                                     event.stopPropagation()
                                     if (isDeleting()) {
@@ -1240,9 +1387,7 @@ function LibraryWorkspace() {
                                 />
                                 <FormatButton
                                   label="MD"
-                                  active={
-                                    getCardFormat(item.id) === 'markdown'
-                                  }
+                                  active={getCardFormat(item.id) === 'markdown'}
                                   onClick={(event) => {
                                     event.stopPropagation()
                                     if (isDeleting()) {
@@ -1254,9 +1399,7 @@ function LibraryWorkspace() {
                                 />
                                 <FormatButton
                                   label="BB"
-                                  active={
-                                    getCardFormat(item.id) === 'bbcode'
-                                  }
+                                  active={getCardFormat(item.id) === 'bbcode'}
                                   onClick={(event) => {
                                     event.stopPropagation()
                                     if (isDeleting()) {
@@ -1294,9 +1437,7 @@ function LibraryWorkspace() {
                   </Show>
 
                   <Show
-                    when={
-                      !libraryNextCursor() && libraryItems().length > 0
-                    }
+                    when={!libraryNextCursor() && libraryItems().length > 0}
                   >
                     <div class="pt-2 pb-1 text-center font-mono text-[10px] uppercase tracking-[1.3px] text-text-dim">
                       End of library
@@ -1389,8 +1530,8 @@ function LibraryWorkspace() {
                     : 'Drop image(s) or click to browse'}
                 </p>
                 <p class="font-mono text-[13px] text-text-dim mb-4">
-                  <span class="kbd">Ctrl</span> +{' '}
-                  <span class="kbd">V</span> to paste from clipboard
+                  <span class="kbd">Ctrl</span> + <span class="kbd">V</span> to
+                  paste from clipboard
                 </p>
                 <div class="flex gap-1.5">
                   <span class="format-chip">PNG</span>
@@ -1457,30 +1598,22 @@ function LibraryWorkspace() {
                         label="MD"
                         value={result().markdown}
                         onCopy={() => {
-                          void copyValue(
-                            result().markdown,
-                            'Markdown copied',
-                            {
-                              uploadId: result().id,
-                              format: 'markdown',
-                              source: 'uploader',
-                            },
-                          )
+                          void copyValue(result().markdown, 'Markdown copied', {
+                            uploadId: result().id,
+                            format: 'markdown',
+                            source: 'uploader',
+                          })
                         }}
                       />
                       <OutputRow
                         label="BB"
                         value={result().bbcode}
                         onCopy={() => {
-                          void copyValue(
-                            result().bbcode,
-                            'BBCode copied',
-                            {
-                              uploadId: result().id,
-                              format: 'bbcode',
-                              source: 'uploader',
-                            },
-                          )
+                          void copyValue(result().bbcode, 'BBCode copied', {
+                            uploadId: result().id,
+                            format: 'bbcode',
+                            source: 'uploader',
+                          })
                         }}
                       />
                     </div>

@@ -137,8 +137,8 @@ Build the fastest image sharing flow on the web:
 - [x] Copy tracking calls from uploader actions
 - [x] Top bar with auth-aware sign-in/sign-out state
 - [x] Multi-file upload support
-- [ ] Inline upload cards in a live library context
-- [ ] Centralized toast stack (current feedback is inline message blocks)
+- [x] Inline upload cards in a live library context
+- [x] zoom slider. more zoomed out means more column and smaller
 
 ### Phase 4 - Library UX Rebuild
 
