@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "e74bb9a9-c855-479a-8376-4d5ff62cf964",
+  "id": "293d8bb3-cf69-44dc-9c3f-3f897a8e1a34",
   "prevIds": [
-    "b19dbd62-ddaa-4ee5-b95f-3546f14b736b"
+    "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
@@ -20,6 +20,10 @@
     },
     {
       "name": "verification",
+      "entityType": "tables"
+    },
+    {
+      "name": "request_rate_limits",
       "entityType": "tables"
     },
     {
@@ -101,7 +105,7 @@
       "table": "account"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -111,7 +115,7 @@
       "table": "account"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -141,7 +145,7 @@
       "table": "account"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -151,7 +155,7 @@
       "table": "account"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -171,7 +175,7 @@
       "table": "session"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -191,7 +195,7 @@
       "table": "session"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -201,7 +205,7 @@
       "table": "session"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -291,7 +295,7 @@
       "table": "user"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -301,7 +305,7 @@
       "table": "user"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -341,7 +345,7 @@
       "table": "verification"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -351,7 +355,7 @@
       "table": "verification"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -361,7 +365,7 @@
       "table": "verification"
     },
     {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -369,6 +373,86 @@
       "name": "updatedAt",
       "entityType": "columns",
       "table": "verification"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "request_rate_limits"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "operation",
+      "entityType": "columns",
+      "table": "request_rate_limits"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scope",
+      "entityType": "columns",
+      "table": "request_rate_limits"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scope_id",
+      "entityType": "columns",
+      "table": "request_rate_limits"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "window_started_at",
+      "entityType": "columns",
+      "table": "request_rate_limits"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "request_count",
+      "entityType": "columns",
+      "table": "request_rate_limits"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "CURRENT_TIMESTAMP",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "request_rate_limits"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "CURRENT_TIMESTAMP",
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "request_rate_limits"
     },
     {
       "type": "text",
@@ -677,36 +761,6 @@
     },
     {
       "columns": [
-        "actor_user_id"
-      ],
-      "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "SET NULL",
-      "nameExplicit": false,
-      "name": "fk_upload_copy_events_actor_user_id_user_id_fk",
-      "entityType": "fks",
-      "table": "upload_copy_events"
-    },
-    {
-      "columns": [
-        "owner_user_id"
-      ],
-      "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "SET NULL",
-      "nameExplicit": false,
-      "name": "fk_uploads_owner_user_id_user_id_fk",
-      "entityType": "fks",
-      "table": "uploads"
-    },
-    {
-      "columns": [
         "id"
       ],
       "nameExplicit": false,
@@ -739,6 +793,15 @@
       "nameExplicit": false,
       "name": "verification_pk",
       "table": "verification",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "request_rate_limits_pk",
+      "table": "request_rate_limits",
       "entityType": "pks"
     },
     {
@@ -818,6 +881,42 @@
       "name": "verification_identifier_idx",
       "entityType": "indexes",
       "table": "verification"
+    },
+    {
+      "columns": [
+        {
+          "value": "operation",
+          "isExpression": false
+        },
+        {
+          "value": "scope",
+          "isExpression": false
+        },
+        {
+          "value": "window_started_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_request_rate_limits_operation_scope",
+      "entityType": "indexes",
+      "table": "request_rate_limits"
+    },
+    {
+      "columns": [
+        {
+          "value": "window_started_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_request_rate_limits_window_started_at",
+      "entityType": "indexes",
+      "table": "request_rate_limits"
     },
     {
       "columns": [

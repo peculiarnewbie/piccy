@@ -1,5 +1,12 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/solid-router'
-import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js'
+import {
+  For,
+  Show,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+} from 'solid-js'
 import { authClient } from '../lib/auth-client'
 
 export const Route = createFileRoute('/')({ component: HomeRoute })
@@ -67,75 +74,75 @@ const RECENT_UPLOAD_HIGHLIGHT_STORAGE_KEY = 'piccy_recent_upload_highlight_v1'
 
 const FIRST_VISIT_LIBRARY_ITEMS: Array<LibraryItem> = [
   {
-    id: '01KHPKE4CAKTYFKFY57S6DD9BZ',
+    id: '01KHR1QQHMTKFGWEBM504KNZ57',
     directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif',
+      'https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif',
     markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif)',
+      '![image](https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif)',
     bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif[/img]',
+      '[img]https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif[/img]',
     thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPKE4CAKTYFKFY57S6DD9BZ%2Foriginal.gif',
+      'https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif',
     mimeType: 'image/gif',
     sizeBytes: 0,
     width: null,
     height: null,
     copyCount: 1,
-    createdAt: '2026-02-18T00:00:04.000Z',
+    createdAt: '2026-02-18T09:14:27.000Z',
     isSeeded: true,
   },
   {
-    id: '01KHPKBK6Q6QMH60M7MTKM99ZF',
+    id: '01KHR1RXC1ZD10SPD9F3CH2M1D',
     directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png',
+      'https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg',
     markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png)',
+      '![image](https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg)',
     bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png[/img]',
+      '[img]https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg[/img]',
     thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPKBK6Q6QMH60M7MTKM99ZF%2Foriginal.png',
-    mimeType: 'image/png',
+      'https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg',
+    mimeType: 'image/jpeg',
     sizeBytes: 0,
     width: null,
     height: null,
     copyCount: 1,
-    createdAt: '2026-02-18T00:00:03.000Z',
+    createdAt: '2026-02-18T09:14:26.000Z',
     isSeeded: true,
   },
   {
-    id: '01KHPKA7WJ9N6V41MEXNDE99EH',
+    id: '01KHR1VA69NVHKNM4DNY408WDS',
     directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png',
+      'https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif',
     markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png)',
+      '![image](https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif)',
     bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png[/img]',
+      '[img]https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif[/img]',
     thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPKA7WJ9N6V41MEXNDE99EH%2Foriginal.png',
-    mimeType: 'image/png',
-    sizeBytes: 0,
-    width: null,
-    height: null,
-    copyCount: 1,
-    createdAt: '2026-02-18T00:00:02.000Z',
-    isSeeded: true,
-  },
-  {
-    id: '01KHPK6XKCFATR42RJFDE62QSY',
-    directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif',
-    markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif)',
-    bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif[/img]',
-    thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHPK6XKCFATR42RJFDE62QSY%2Foriginal.gif',
+      'https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif',
     mimeType: 'image/gif',
     sizeBytes: 0,
     width: null,
     height: null,
-    copyCount: 2,
-    createdAt: '2026-02-18T00:00:01.000Z',
+    copyCount: 1,
+    createdAt: '2026-02-18T09:14:25.000Z',
+    isSeeded: true,
+  },
+  {
+    id: '01KHR1ZXVT6P9TYKWZNBNV13V4',
+    directUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png',
+    markdown:
+      '![image](https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png)',
+    bbcode:
+      '[img]https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png[/img]',
+    thumbUrl:
+      'https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png',
+    mimeType: 'image/png',
+    sizeBytes: 0,
+    width: null,
+    height: null,
+    copyCount: 1,
+    createdAt: '2026-02-18T09:14:24.000Z',
     isSeeded: true,
   },
 ]
@@ -387,8 +394,8 @@ const parseJsonErrorMessage = async (
   fallback: string,
 ): Promise<string> => {
   try {
-    const payload = (await response.json()) as { error?: string }
-    if (payload.error) {
+    const payload: { error?: string } = await response.json()
+    if (typeof payload.error === 'string' && payload.error.length > 0) {
       return payload.error
     }
   } catch {
@@ -417,7 +424,8 @@ const fetchLibraryPage = async (
     )
   }
 
-  return (await response.json()) as LibraryResponse
+  const payload: LibraryResponse = await response.json()
+  return payload
 }
 
 const deleteLibraryUpload = async (uploadId: string): Promise<void> => {
@@ -1303,7 +1311,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
             Grab, drop, share. <em class="italic text-accent">Repeat.</em>
           </h1>
           <p class="font-mono text-sm text-text-dim">
-            A clipboard for your images. Click any to copy its link.
+            A clipboard for your images.
           </p>
         </div>
         <div class="flex gap-4 shrink-0 max-md:hidden">
@@ -1328,7 +1336,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
 
       <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.3fr_1fr] min-h-0">
         <div class="p-6 flex flex-col border-r-0 md:border-r-2 border-b-2 md:border-b-0 border-border bg-surface animate-slide-up [animation-delay:80ms]">
-          <div class="panel-label">How it works</div>
+          <div class="panel-label">Click any to copy its link</div>
           <div class="flex-1 min-h-[300px] bg-bg border-2 border-border-heavy rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
             <div class="h-[34px] bg-surface-2 border-b-2 border-border flex items-center px-3.5 gap-1.5">
               <div class="w-[9px] h-[9px] rounded-full bg-accent" />
@@ -1553,7 +1561,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
           </div>
 
           <p class="font-mono text-[11px] text-text-dim text-center mt-3 italic">
-            Replace with a real GIF showing click-to-copy in action
+            Keep personal library of reaction images
           </p>
         </div>
 
