@@ -2,7 +2,9 @@ import handler from '@tanstack/solid-start/server-entry'
 import { auth } from '../lib/auth'
 
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024
-const MAX_ANONYMOUS_UPLOADS = 50
+const MAX_ANONYMOUS_UPLOADS = 25
+const MAX_USER_UPLOADS = 250
+const MAX_PAID_USER_UPLOADS = 10_000
 const ANONYMOUS_UPLOAD_EXPIRY_DAYS = 30
 const SOFT_DELETE_GRACE_PERIOD_DAYS = 7
 const PAID_MULTI_UPLOAD_BATCH_FIELD = 'batchSize'
@@ -1195,11 +1197,18 @@ const handleGetMyEntitlementsRequest = async (
     migrateAnonymousToUser: true,
   })
 
+  const libraryLimit = identity.isPaidUser
+    ? MAX_PAID_USER_UPLOADS
+    : identity.userId
+      ? MAX_USER_UPLOADS
+      : MAX_ANONYMOUS_UPLOADS
+
   return withSetCookieHeader(
     respondJson({
       isAuthenticated: Boolean(identity.userId),
       isPaid: identity.isPaidUser,
       multiFileUploadEnabled: Boolean(identity.userId && identity.isPaidUser),
+      libraryLimit,
     }),
     identity.setCookieHeader,
   )
@@ -1732,7 +1741,36 @@ const handleUploadRequest = async (
     }
   }
 
-  if (!ownerUserId) {
+  if (ownerUserId) {
+    const maxUploads = identity.isPaidUser
+      ? MAX_PAID_USER_UPLOADS
+      : MAX_USER_UPLOADS
+
+    const usageResult = await env.DB.prepare(
+      `SELECT COUNT(*) AS total
+       FROM uploads
+       WHERE owner_user_id = ?
+         AND deleted_at IS NULL`,
+    )
+      .bind(ownerUserId)
+      .first<{ total: number | string }>()
+
+    const rawTotal = usageResult?.total ?? 0
+    const totalUploads =
+      typeof rawTotal === 'number' ? rawTotal : Number(rawTotal)
+
+    if (Number.isFinite(totalUploads) && totalUploads >= maxUploads) {
+      const upgradeHint = identity.isPaidUser
+        ? ''
+        : ' Upgrade to a paid plan for up to 10,000.'
+      return respondWithIdentity(
+        {
+          error: `Library limit reached (${maxUploads.toLocaleString()} images).${upgradeHint}`,
+        },
+        403,
+      )
+    }
+  } else {
     if (!ownerAnonymousId) {
       return respondWithIdentity(
         {
@@ -1761,7 +1799,7 @@ const handleUploadRequest = async (
     ) {
       return respondWithIdentity(
         {
-          error: `Anonymous library limit reached (${MAX_ANONYMOUS_UPLOADS} images). Sign in to store more.`,
+          error: `Guest library limit reached (${MAX_ANONYMOUS_UPLOADS} images). Sign in to store more.`,
         },
         403,
       )

@@ -83,9 +83,7 @@ export const uploads = sqliteTable(
   'uploads',
   {
     id: text('id').primaryKey(),
-    ownerUserId: text('owner_user_id').references(() => authUsers.id, {
-      onDelete: 'set null',
-    }),
+    ownerUserId: text('owner_user_id'),
     ownerAnonId: text('owner_anon_id'),
     expiresAt: text('expires_at'),
     r2Key: text('r2_key').notNull(),
@@ -137,9 +135,7 @@ export const uploadCopyEvents = sqliteTable(
     uploadId: text('upload_id')
       .notNull()
       .references(() => uploads.id, { onDelete: 'cascade' }),
-    actorUserId: text('actor_user_id').references(() => authUsers.id, {
-      onDelete: 'set null',
-    }),
+    actorUserId: text('actor_user_id'),
     copiedFormat: text('copied_format', {
       enum: ['direct', 'markdown', 'bbcode'],
     }).notNull(),

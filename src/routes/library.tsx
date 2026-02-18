@@ -56,6 +56,7 @@ type UploadEntitlements = {
   isAuthenticated: boolean
   isPaid: boolean
   multiFileUploadEnabled: boolean
+  libraryLimit: number
 }
 
 type CopyTrackingInput = {
@@ -1126,7 +1127,10 @@ function LibraryWorkspace() {
 
             <div class="flex items-center gap-2.5 flex-wrap">
               <div class="px-3 py-1.5 rounded-full border border-border-heavy bg-surface-2 font-mono text-[11px] uppercase tracking-[1px] text-text-dim">
-                Guests: 50 items
+                {uploadEntitlements()
+                  ? `${uploadEntitlements()!.libraryLimit.toLocaleString()} items`
+                  : '...'
+                }
               </div>
               <div class="flex items-center gap-2 rounded-full border border-border-heavy bg-surface-2 px-3 py-1.5">
                 <span class="font-mono text-[10px] uppercase tracking-[1px] text-text-dim">
