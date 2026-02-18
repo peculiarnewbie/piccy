@@ -58,6 +58,7 @@ type UploadEntitlements = {
   isPaid: boolean
   multiFileUploadEnabled: boolean
   libraryLimit: number
+  libraryUsage: number
 }
 
 type CopyTrackingInput = {
@@ -815,6 +816,7 @@ function LibraryWorkspace() {
         }
 
         await reloadLibrary()
+        void loadUploadEntitlements()
 
         // Highlight the most recent upload in the grid
         markRecentlyUploadedCard(latestUpload.id)
@@ -939,6 +941,7 @@ function LibraryWorkspace() {
     try {
       await deleteLibraryUpload(uploadId)
       pushToast('success', 'Upload deleted')
+      void loadUploadEntitlements()
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to delete upload.'
@@ -982,6 +985,7 @@ function LibraryWorkspace() {
   })
 
   onMount(() => {
+    void loadUploadEntitlements()
     void reloadLibrary()
 
     const handleWindowResize = () => {
@@ -1127,65 +1131,65 @@ function LibraryWorkspace() {
 
             <div class="flex items-center gap-2.5 flex-wrap">
               <Show
-                when={!session().isPending}
+                when={uploadEntitlements()}
                 fallback={
                   <div class="px-3 py-1.5 rounded-full border border-border-heavy bg-surface-2 font-mono text-[11px] uppercase tracking-[1px] text-text-dim">
                     ...
                   </div>
                 }
               >
-                <Show
-                  when={session().data?.user}
-                  fallback={
-                    <a
-                      href="/demo/better-auth"
-                      class="group flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-accent/50 bg-accent/8 hover:bg-accent/15 hover:border-accent transition-all"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        class="w-3.5 h-3.5 stroke-accent"
-                        stroke-width="2.5"
-                      >
-                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                        <polyline points="10 17 15 12 10 7" />
-                        <line x1="15" y1="12" x2="3" y2="12" />
-                      </svg>
-                      <span class="font-mono text-[11px] font-medium tracking-[0.5px] text-accent">
-                        Sign in for more uploads
-                      </span>
-                    </a>
-                  }
-                >
-                  <Show when={uploadEntitlements()}>
-                    {(ent) => {
-                      const used = () => libraryItems().length
-                      const limit = () => ent().libraryLimit
-                      const pct = () => Math.min(100, Math.round((used() / limit()) * 100))
-                      const isNearLimit = () => pct() >= 85
+                {(ent) => {
+                  const used = () => ent().libraryUsage
+                  const limit = () => ent().libraryLimit
+                  const pct = () => limit() > 0 ? Math.min(100, Math.round((used() / limit()) * 100)) : 0
+                  const isNearLimit = () => pct() >= 85
+                  const isGuest = () => !session().data?.user
 
-                      return (
-                        <div class="flex items-center gap-2.5 px-3 py-1.5 rounded-full border border-border-heavy bg-surface-2">
-                          <div class="w-20 md:w-24 h-[6px] rounded-full bg-bg overflow-hidden">
-                            <div
-                              class={`h-full rounded-full transition-all duration-500 ${
-                                isNearLimit() ? 'bg-accent' : 'bg-mint'
-                              }`}
-                              style={{ width: `${pct()}%` }}
-                            />
-                          </div>
-                          <span class={`font-mono text-[10px] tracking-[0.5px] tabular-nums ${
-                            isNearLimit() ? 'text-accent' : 'text-text-dim'
-                          }`}>
-                            {used().toLocaleString()}/{limit().toLocaleString()}
-                          </span>
+                  return (
+                    <>
+                      <div class={`flex items-center gap-2.5 px-3 py-1.5 rounded-full border bg-surface-2 ${
+                        isNearLimit() ? 'border-accent/40' : 'border-border-heavy'
+                      }`}>
+                        <div class="w-20 md:w-24 h-[6px] rounded-full bg-bg overflow-hidden">
+                          <div
+                            class={`h-full rounded-full transition-all duration-500 ${
+                              isNearLimit() ? 'bg-accent' : 'bg-mint'
+                            }`}
+                            style={{ width: `${Math.max(pct(), 2)}%` }}
+                          />
                         </div>
-                      )
-                    }}
-                  </Show>
-                </Show>
+                        <span class={`font-mono text-[10px] tracking-[0.5px] tabular-nums whitespace-nowrap ${
+                          isNearLimit() ? 'text-accent' : 'text-text-dim'
+                        }`}>
+                          {used().toLocaleString()}<span class="text-text-dim/50">/</span>{limit().toLocaleString()}
+                        </span>
+                      </div>
+
+                      <Show when={isGuest()}>
+                        <a
+                          href="/demo/better-auth"
+                          class="group flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-accent/50 bg-accent/8 hover:bg-accent/15 hover:border-accent transition-all"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="w-3.5 h-3.5 stroke-accent"
+                            stroke-width="2.5"
+                          >
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                            <polyline points="10 17 15 12 10 7" />
+                            <line x1="15" y1="12" x2="3" y2="12" />
+                          </svg>
+                          <span class="font-mono text-[11px] font-medium tracking-[0.5px] text-accent">
+                            Sign in for more
+                          </span>
+                        </a>
+                      </Show>
+                    </>
+                  )
+                }}
               </Show>
               <div class="flex items-center gap-2 rounded-full border border-border-heavy bg-surface-2 px-3 py-1.5">
                 <span class="font-mono text-[10px] uppercase tracking-[1px] text-text-dim">

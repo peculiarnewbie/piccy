@@ -1291,12 +1291,43 @@ const handleGetMyEntitlementsRequest = async (
       ? MAX_USER_UPLOADS
       : MAX_ANONYMOUS_UPLOADS
 
+  let libraryUsage = 0
+
+  if (identity.userId) {
+    const result = await env.DB.prepare(
+      `SELECT COUNT(*) AS total
+       FROM uploads
+       WHERE owner_user_id = ?
+         AND deleted_at IS NULL`,
+    )
+      .bind(identity.userId)
+      .first<{ total: number | string }>()
+
+    const raw = result?.total ?? 0
+    libraryUsage = typeof raw === 'number' ? raw : Number(raw)
+    if (!Number.isFinite(libraryUsage)) libraryUsage = 0
+  } else if (identity.anonymousId) {
+    const result = await env.DB.prepare(
+      `SELECT COUNT(*) AS total
+       FROM uploads
+       WHERE owner_anon_id = ?
+         AND deleted_at IS NULL`,
+    )
+      .bind(identity.anonymousId)
+      .first<{ total: number | string }>()
+
+    const raw = result?.total ?? 0
+    libraryUsage = typeof raw === 'number' ? raw : Number(raw)
+    if (!Number.isFinite(libraryUsage)) libraryUsage = 0
+  }
+
   return withSetCookieHeader(
     respondJson({
       isAuthenticated: Boolean(identity.userId),
       isPaid: identity.isPaidUser,
       multiFileUploadEnabled: Boolean(identity.userId && identity.isPaidUser),
       libraryLimit,
+      libraryUsage,
     }),
     identity.setCookieHeader,
   )
