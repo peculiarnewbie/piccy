@@ -1,5 +1,6 @@
+import { env } from 'cloudflare:workers'
 import handler from '@tanstack/solid-start/server-entry'
-import { getAuthForDatabase } from '../lib/auth'
+import { setAuthDatabaseBinding } from '../lib/auth'
 
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024
 const MAX_ANONYMOUS_UPLOADS = 25
@@ -14,7 +15,6 @@ const AUTH_SESSION_LOOKUP_TIMEOUT_MESSAGE = 'Auth session lookup timed out'
 const LIBRARY_PAGE_SIZE = 30
 const CLEANUP_BATCH_SIZE = 50
 const MAX_CLEANUP_BATCHES_PER_RUN = 5
-const TELEMETRY_RETENTION_DAYS = 30
 const RATE_LIMIT_RETENTION_HOURS = 24
 const ANONYMOUS_COOKIE_NAME = 'piccy_anon_id'
 const ANONYMOUS_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
@@ -58,59 +58,6 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   webp: 'image/webp',
-}
-
-interface Env {
-  DB: {
-    prepare: (query: string) => {
-      bind: (...values: Array<unknown>) => {
-        run: () => Promise<unknown>
-        first: <T = Record<string, unknown>>() => Promise<T | null>
-        all: <T = Record<string, unknown>>() => Promise<{
-          results?: Array<T>
-        }>
-      }
-    }
-  }
-  BUCKET: {
-    put: (
-      key: string,
-      value: ArrayBuffer,
-      options?: {
-        httpMetadata?: {
-          contentType?: string
-        }
-      },
-    ) => Promise<unknown>
-    get: (key: string) => Promise<{
-      body: ReadableStream | null
-      httpEtag: string
-      writeHttpMetadata: (headers: Headers) => void
-    } | null>
-    delete: (key: string) => Promise<unknown>
-  }
-}
-
-interface WorkerHandler {
-  fetch: (
-    request: Request,
-    env: Env,
-    context: WorkerExecutionContext,
-  ) => Promise<Response>
-  scheduled: (
-    controller: WorkerScheduledController,
-    env: Env,
-    context: WorkerExecutionContext,
-  ) => void
-}
-
-interface WorkerExecutionContext {
-  waitUntil: (promise: Promise<unknown>) => void
-}
-
-interface WorkerScheduledController {
-  cron: string
-  scheduledTime: number
 }
 
 type UploadResponse = {
@@ -194,8 +141,6 @@ type RateLimitRule = {
   windowMs: number
   maxRequests: number
 }
-
-type RequestTelemetryType = 'upload' | 'copy'
 
 type CleanupUploadRow = {
   id: string
@@ -435,95 +380,19 @@ const safeDecodeURIComponent = (value: string): string | null => {
   }
 }
 
-const getRuntimeEnv = (): Record<string, unknown> | undefined => {
-  const runtimeProcess = (
-    globalThis as { process?: { env?: Record<string, unknown> } }
-  ).process
-
-  return runtimeProcess?.env
-}
-
-const setRuntimeEnvValue = (key: string, value: unknown): void => {
-  const runtimeGlobal = globalThis as {
-    process?: {
-      env?: Record<string, unknown>
-    }
-  }
-
-  if (!runtimeGlobal.process) {
-    runtimeGlobal.process = { env: {} }
-  }
-
-  if (!runtimeGlobal.process.env) {
-    runtimeGlobal.process.env = {}
-  }
-
-  runtimeGlobal.process.env[key] = value
-}
-
-const syncRuntimeEnvFromBindings = (env: Env): void => {
-  setRuntimeEnvValue('DB', env.DB)
-
-  const runtimeEnvVars = env as unknown as Record<string, unknown>
-  const authEnvKeys = [
-    'BETTER_AUTH_URL',
-    'BETTER_AUTH_SECRET',
-    'GOOGLE_CLIENT_ID',
-    'GOOGLE_CLIENT_SECRET',
-    'DISCORD_CLIENT_ID',
-    'DISCORD_CLIENT_SECRET',
-    'PAID_USER_IDS',
-    'PAID_USER_EMAILS',
-  ] as const
-
-  for (const key of authEnvKeys) {
-    const value = runtimeEnvVars[key]
-    if (typeof value === 'string') {
-      setRuntimeEnvValue(key, value)
-    }
-  }
-}
-
-const getRuntimeEnvString = (key: string): string | null => {
-  const value = getRuntimeEnv()?.[key]
-  if (typeof value !== 'string') {
-    return null
-  }
-
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
-}
-
-const parseEnvCsvSet = (key: string): Set<string> => {
-  const value = getRuntimeEnvString(key)
-  if (!value) {
-    return new Set<string>()
-  }
-
-  return new Set(
-    value
-      .split(',')
-      .map((entry) => entry.trim().toLowerCase())
-      .filter((entry) => entry.length > 0),
-  )
-}
-
-const isAuthenticatedUserPaid = (user: AuthenticatedUser | null): boolean => {
-  if (!user) {
-    return false
-  }
-
-  const paidUserIds = parseEnvCsvSet('PAID_USER_IDS')
-  if (paidUserIds.has(user.id.toLowerCase())) {
-    return true
-  }
-
-  if (!user.email) {
-    return false
-  }
-
-  const paidUserEmails = parseEnvCsvSet('PAID_USER_EMAILS')
-  return paidUserEmails.has(user.email.toLowerCase())
+// FIX THIS INTEGRATE DB. ASSUME USING LEMON SQUEEZY
+const isAuthenticatedUserPaid = (_user: AuthenticatedUser | null): boolean => {
+  // if (!user) {
+  //   return false
+  // }
+  // if (paidUserIds.has(user.id.toLowerCase())) {
+  //   return true
+  // }
+  // if (!user.email) {
+  //   return false
+  // }
+  // return paidUserEmails.has(user.email.toLowerCase())
+  return false
 }
 
 const parseBatchSize = (value: FormDataEntryValue | null): number => {
@@ -540,7 +409,8 @@ const parseBatchSize = (value: FormDataEntryValue | null): number => {
 }
 
 const getAnonymousCookieSigningSecret = (): string | null => {
-  return getRuntimeEnvString('BETTER_AUTH_SECRET')
+  const secret = env.BETTER_AUTH_SECRET.trim()
+  return secret && secret.length > 0 ? secret : null
 }
 
 const getCookieValue = (request: Request, name: string): string | null => {
@@ -708,7 +578,6 @@ const buildAnonymousCookieClearHeader = (request: Request): string => {
 }
 
 const migrateAnonymousUploadsToUser = async (
-  env: Env,
   anonymousId: string,
   userId: string,
 ): Promise<void> => {
@@ -729,7 +598,6 @@ const migrateAnonymousUploadsToUser = async (
 
 const resolveRequestIdentity = async (
   request: Request,
-  env: Env,
   options: IdentityResolutionOptions,
 ): Promise<RequestIdentity> => {
   const signingSecret = getAnonymousCookieSigningSecret()
@@ -738,7 +606,7 @@ const resolveRequestIdentity = async (
   let authSessionLookupFailed = false
 
   try {
-    authenticatedUser = await getAuthenticatedUser(request, env)
+    authenticatedUser = await getAuthenticatedUser(request)
   } catch (error) {
     if (requestHasAuthCookie) {
       authSessionLookupFailed = true
@@ -770,7 +638,7 @@ const resolveRequestIdentity = async (
 
   if (userId) {
     if (options.migrateAnonymousToUser && anonymousId) {
-      await migrateAnonymousUploadsToUser(env, anonymousId, userId)
+      await migrateAnonymousUploadsToUser(anonymousId, userId)
       anonymousId = null
       setCookieHeader = buildAnonymousCookieClearHeader(request)
     }
@@ -852,7 +720,6 @@ const getRateLimitScopeId = (
 }
 
 const incrementRateLimitCounter = async (
-  env: Env,
   operation: RateLimitedOperation,
   rule: RateLimitRule,
   scopeId: string,
@@ -925,7 +792,6 @@ const incrementRateLimitCounter = async (
 
 const enforceRateLimits = async (
   request: Request,
-  env: Env,
   identity: RequestIdentity,
   operation: RateLimitedOperation,
 ): Promise<Response | null> => {
@@ -935,12 +801,7 @@ const enforceRateLimits = async (
       continue
     }
 
-    const counter = await incrementRateLimitCounter(
-      env,
-      operation,
-      rule,
-      scopeId,
-    )
+    const counter = await incrementRateLimitCounter(operation, rule, scopeId)
     if (!counter) {
       continue
     }
@@ -964,95 +825,7 @@ const enforceRateLimits = async (
   return null
 }
 
-const getTelemetryFailureReason = (statusCode: number): string | null => {
-  if (statusCode < 400) {
-    return null
-  }
-
-  if (statusCode >= 500) {
-    return 'server_error'
-  }
-
-  return 'client_error'
-}
-
-const writeRequestTelemetryEvent = async (
-  env: Env,
-  requestType: RequestTelemetryType,
-  requestPath: string,
-  statusCode: number,
-  latencyMs: number,
-): Promise<void> => {
-  const nowIso = new Date().toISOString()
-  const failureReason = getTelemetryFailureReason(statusCode)
-  const normalizedLatencyMs = Math.max(0, Math.round(latencyMs))
-
-  try {
-    await env.DB.prepare(
-      `INSERT INTO request_telemetry_events (
-         id,
-         request_type,
-         request_path,
-         status_code,
-         latency_ms,
-         failed,
-         failure_reason,
-         created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        createUlid(),
-        requestType,
-        requestPath,
-        statusCode,
-        normalizedLatencyMs,
-        statusCode >= 400 ? 1 : 0,
-        failureReason,
-        nowIso,
-      )
-      .run()
-  } catch (error) {
-    console.error('Request telemetry write failed', error)
-  }
-}
-
-const runWithRequestTelemetry = async (
-  request: Request,
-  env: Env,
-  context: WorkerExecutionContext,
-  requestType: RequestTelemetryType,
-  run: () => Promise<Response>,
-): Promise<Response> => {
-  const startedAt = Date.now()
-
-  try {
-    const response = await run()
-    context.waitUntil(
-      writeRequestTelemetryEvent(
-        env,
-        requestType,
-        new URL(request.url).pathname,
-        response.status,
-        Date.now() - startedAt,
-      ),
-    )
-    return response
-  } catch (error) {
-    context.waitUntil(
-      writeRequestTelemetryEvent(
-        env,
-        requestType,
-        new URL(request.url).pathname,
-        500,
-        Date.now() - startedAt,
-      ),
-    )
-    throw error
-  }
-}
-
 const deleteUploadAssets = async (
-  env: Env,
   upload: CleanupUploadRow,
 ): Promise<boolean> => {
   const keysToDelete = Array.from(
@@ -1075,7 +848,7 @@ const deleteUploadAssets = async (
   }
 }
 
-const hardDeleteUpload = async (env: Env, uploadId: string): Promise<void> => {
+const hardDeleteUpload = async (uploadId: string): Promise<void> => {
   await env.DB.prepare(
     `DELETE FROM uploads
      WHERE id = ?`,
@@ -1085,14 +858,13 @@ const hardDeleteUpload = async (env: Env, uploadId: string): Promise<void> => {
 }
 
 const cleanupUploadsByQuery = async (
-  env: Env,
   query: string,
   bindValues: Array<string | number>,
 ): Promise<number> => {
   const result = await env.DB.prepare(query)
     .bind(...bindValues)
     .all<CleanupUploadRow>()
-  const rows = result.results ?? []
+  const rows = result.results
 
   if (rows.length === 0) {
     return 0
@@ -1101,13 +873,13 @@ const cleanupUploadsByQuery = async (
   let deletedCount = 0
 
   for (const row of rows) {
-    const didDeleteAssets = await deleteUploadAssets(env, row)
+    const didDeleteAssets = await deleteUploadAssets(row)
     if (!didDeleteAssets) {
       continue
     }
 
     try {
-      await hardDeleteUpload(env, row.id)
+      await hardDeleteUpload(row.id)
       deletedCount += 1
     } catch (error) {
       console.error('Upload row hard delete failed after object cleanup', {
@@ -1120,13 +892,12 @@ const cleanupUploadsByQuery = async (
   return deletedCount
 }
 
-const cleanupExpiredAnonymousUploads = async (env: Env): Promise<number> => {
+const cleanupExpiredAnonymousUploads = async (): Promise<number> => {
   const nowIso = new Date().toISOString()
   let deletedCount = 0
 
   for (let index = 0; index < MAX_CLEANUP_BATCHES_PER_RUN; index += 1) {
     const batchDeleted = await cleanupUploadsByQuery(
-      env,
       `SELECT id, r2_key, thumb_r2_key, webp_r2_key
        FROM uploads
        WHERE owner_user_id IS NULL
@@ -1149,7 +920,7 @@ const cleanupExpiredAnonymousUploads = async (env: Env): Promise<number> => {
   return deletedCount
 }
 
-const cleanupSoftDeletedUploads = async (env: Env): Promise<number> => {
+const cleanupSoftDeletedUploads = async (): Promise<number> => {
   const cutoffIso = new Date(
     Date.now() - SOFT_DELETE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString()
@@ -1157,7 +928,6 @@ const cleanupSoftDeletedUploads = async (env: Env): Promise<number> => {
 
   for (let index = 0; index < MAX_CLEANUP_BATCHES_PER_RUN; index += 1) {
     const batchDeleted = await cleanupUploadsByQuery(
-      env,
       `SELECT id, r2_key, thumb_r2_key, webp_r2_key
        FROM uploads
        WHERE deleted_at IS NOT NULL
@@ -1177,7 +947,7 @@ const cleanupSoftDeletedUploads = async (env: Env): Promise<number> => {
   return deletedCount
 }
 
-const cleanupStaleRateLimitRows = async (env: Env): Promise<number> => {
+const cleanupStaleRateLimitRows = async (): Promise<number> => {
   const cutoffMs = Date.now() - RATE_LIMIT_RETENTION_HOURS * 60 * 60 * 1000
 
   const countResult = await env.DB.prepare(
@@ -1205,50 +975,18 @@ const cleanupStaleRateLimitRows = async (env: Env): Promise<number> => {
   return total
 }
 
-const cleanupOldTelemetryRows = async (env: Env): Promise<number> => {
-  const cutoffIso = new Date(
-    Date.now() - TELEMETRY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString()
-
-  const countResult = await env.DB.prepare(
-    `SELECT COUNT(*) AS total
-     FROM request_telemetry_events
-     WHERE created_at < ?`,
-  )
-    .bind(cutoffIso)
-    .first<{ total: number | string }>()
-
-  const rawTotal = countResult?.total ?? 0
-  const total = typeof rawTotal === 'number' ? rawTotal : Number(rawTotal)
-
-  if (!Number.isFinite(total) || total <= 0) {
-    return 0
-  }
-
-  await env.DB.prepare(
-    `DELETE FROM request_telemetry_events
-     WHERE created_at < ?`,
-  )
-    .bind(cutoffIso)
-    .run()
-
-  return total
-}
-
-const runScheduledMaintenance = async (env: Env): Promise<void> => {
+const runScheduledMaintenance = async (): Promise<void> => {
   const startedAt = Date.now()
 
   try {
-    const expiredAnonymousDeleted = await cleanupExpiredAnonymousUploads(env)
-    const softDeletedRemoved = await cleanupSoftDeletedUploads(env)
-    const staleRateLimitRowsRemoved = await cleanupStaleRateLimitRows(env)
-    const oldTelemetryRowsRemoved = await cleanupOldTelemetryRows(env)
+    const expiredAnonymousDeleted = await cleanupExpiredAnonymousUploads()
+    const softDeletedRemoved = await cleanupSoftDeletedUploads()
+    const staleRateLimitRowsRemoved = await cleanupStaleRateLimitRows()
 
     console.info('Scheduled cleanup completed', {
       expiredAnonymousDeleted,
       softDeletedRemoved,
       staleRateLimitRowsRemoved,
-      oldTelemetryRowsRemoved,
       durationMs: Date.now() - startedAt,
     })
   } catch (error) {
@@ -1280,30 +1018,52 @@ const withTimeout = async <T>(
 
 const getAuthenticatedUser = async (
   request: Request,
-  env: Env,
 ): Promise<AuthenticatedUser | null> => {
   for (let attempt = 1; attempt <= SESSION_LOOKUP_MAX_ATTEMPTS; attempt += 1) {
     try {
-      const auth = getAuthForDatabase(env.DB)
-      const session = await withTimeout(
-        auth.api.getSession({
+      const sessionLookupRequest = new Request(
+        new URL('/api/auth/get-session', request.url),
+        {
+          method: 'GET',
           headers: new Headers(request.headers),
-        }),
+        },
+      )
+
+      const sessionResponse = await withTimeout(
+        Promise.resolve(handler.fetch(sessionLookupRequest)),
         SESSION_LOOKUP_TIMEOUT_MS,
         AUTH_SESSION_LOOKUP_TIMEOUT_MESSAGE,
       )
 
-      const user = (
-        session as { user?: { id?: unknown; email?: unknown } } | null
-      )?.user
+      if (!sessionResponse.ok) {
+        throw new Error(
+          `Auth session endpoint failed (${sessionResponse.status})`,
+        )
+      }
 
-      if (!user || typeof user.id !== 'string' || user.id.length === 0) {
+      const sessionPayload: unknown = await sessionResponse.json()
+
+      const user =
+        sessionPayload &&
+        typeof sessionPayload === 'object' &&
+        'user' in sessionPayload
+          ? sessionPayload.user
+          : null
+
+      if (!user || typeof user !== 'object') {
+        return null
+      }
+
+      const userId = 'id' in user ? user.id : null
+      const userEmail = 'email' in user ? user.email : null
+
+      if (typeof userId !== 'string' || userId.length === 0) {
         return null
       }
 
       return {
-        id: user.id,
-        email: typeof user.email === 'string' ? user.email : null,
+        id: userId,
+        email: typeof userEmail === 'string' ? userEmail : null,
       }
     } catch (error) {
       if (attempt >= SESSION_LOOKUP_MAX_ATTEMPTS) {
@@ -1317,9 +1077,8 @@ const getAuthenticatedUser = async (
 
 const handleGetMyEntitlementsRequest = async (
   request: Request,
-  env: Env,
 ): Promise<Response> => {
-  const identity = await resolveRequestIdentity(request, env, {
+  const identity = await resolveRequestIdentity(request, {
     ensureAnonymousId: false,
     migrateAnonymousToUser: true,
   })
@@ -1378,10 +1137,9 @@ const handleGetMyEntitlementsRequest = async (
 
 const handleCopyTrackingRequest = async (
   request: Request,
-  env: Env,
   uploadId: string,
 ): Promise<Response> => {
-  const identity = await resolveRequestIdentity(request, env, {
+  const identity = await resolveRequestIdentity(request, {
     ensureAnonymousId: false,
     migrateAnonymousToUser: true,
   })
@@ -1404,12 +1162,7 @@ const handleCopyTrackingRequest = async (
     )
   }
 
-  const rateLimitResponse = await enforceRateLimits(
-    request,
-    env,
-    identity,
-    'copy',
-  )
+  const rateLimitResponse = await enforceRateLimits(request, identity, 'copy')
   if (rateLimitResponse) {
     return withSetCookieHeader(rateLimitResponse, identity.setCookieHeader)
   }
@@ -1562,9 +1315,8 @@ const toUploadListItem = (
 
 const handleGetMyUploadsRequest = async (
   request: Request,
-  env: Env,
 ): Promise<Response> => {
-  const identity = await resolveRequestIdentity(request, env, {
+  const identity = await resolveRequestIdentity(request, {
     ensureAnonymousId: true,
     migrateAnonymousToUser: true,
   })
@@ -1640,7 +1392,7 @@ const handleGetMyUploadsRequest = async (
       )
       .all<UploadQueryRow>()
 
-    rows = result.results ?? []
+    rows = result.results
   } else {
     const result = await env.DB.prepare(
       `SELECT
@@ -1666,7 +1418,7 @@ const handleGetMyUploadsRequest = async (
       .bind(ownerScope.ownerId, limit)
       .all<UploadQueryRow>()
 
-    rows = result.results ?? []
+    rows = result.results
   }
 
   const hasMore = rows.length > LIBRARY_PAGE_SIZE
@@ -1692,10 +1444,9 @@ const handleGetMyUploadsRequest = async (
 
 const handleDeleteMyUploadRequest = async (
   request: Request,
-  env: Env,
   uploadId: string,
 ): Promise<Response> => {
-  const identity = await resolveRequestIdentity(request, env, {
+  const identity = await resolveRequestIdentity(request, {
     ensureAnonymousId: true,
     migrateAnonymousToUser: true,
   })
@@ -1718,12 +1469,7 @@ const handleDeleteMyUploadRequest = async (
     )
   }
 
-  const rateLimitResponse = await enforceRateLimits(
-    request,
-    env,
-    identity,
-    'delete',
-  )
+  const rateLimitResponse = await enforceRateLimits(request, identity, 'delete')
   if (rateLimitResponse) {
     return withSetCookieHeader(rateLimitResponse, identity.setCookieHeader)
   }
@@ -1783,10 +1529,7 @@ const handleDeleteMyUploadRequest = async (
   )
 }
 
-const handleUploadRequest = async (
-  request: Request,
-  env: Env,
-): Promise<Response> => {
+const handleUploadRequest = async (request: Request): Promise<Response> => {
   const contentType = request.headers.get('content-type') ?? ''
   if (!contentType.includes('multipart/form-data')) {
     return respondJson(
@@ -1797,7 +1540,7 @@ const handleUploadRequest = async (
     )
   }
 
-  const identity = await resolveRequestIdentity(request, env, {
+  const identity = await resolveRequestIdentity(request, {
     ensureAnonymousId: true,
     migrateAnonymousToUser: true,
   })
@@ -1816,12 +1559,7 @@ const handleUploadRequest = async (
     )
   }
 
-  const rateLimitResponse = await enforceRateLimits(
-    request,
-    env,
-    identity,
-    'upload',
-  )
+  const rateLimitResponse = await enforceRateLimits(request, identity, 'upload')
   if (rateLimitResponse) {
     return withSetCookieHeader(rateLimitResponse, identity.setCookieHeader)
   }
@@ -2077,7 +1815,6 @@ const handleUploadRequest = async (
 
 const handlePublicImageRequest = async (
   request: Request,
-  env: Env,
 ): Promise<Response> => {
   const pathname = new URL(request.url).pathname
   const encodedKey = pathname.slice(3)
@@ -2119,8 +1856,8 @@ const handlePublicImageRequest = async (
 }
 
 export default {
-  async fetch(request: Request, env: Env, context: WorkerExecutionContext) {
-    syncRuntimeEnvFromBindings(env)
+  async fetch(request, _workerEnv, _context) {
+    setAuthDatabaseBinding(env.DB)
 
     const url = new URL(request.url)
 
@@ -2142,25 +1879,17 @@ export default {
         )
       }
 
-      return runWithRequestTelemetry(
-        request,
-        env,
-        context,
-        'copy',
-        async () => {
-          try {
-            return await handleCopyTrackingRequest(request, env, uploadId)
-          } catch (error) {
-            console.error('Unhandled copy tracking request error', error)
-            return respondJson(
-              {
-                error: 'Copy tracking failed unexpectedly. Please retry.',
-              },
-              500,
-            )
-          }
-        },
-      )
+      try {
+        return await handleCopyTrackingRequest(request, uploadId)
+      } catch (error) {
+        console.error('Unhandled copy tracking request error', error)
+        return respondJson(
+          {
+            error: 'Copy tracking failed unexpectedly. Please retry.',
+          },
+          500,
+        )
+      }
     }
 
     if (url.pathname === '/api/me/uploads') {
@@ -2169,7 +1898,7 @@ export default {
       }
 
       try {
-        return await handleGetMyUploadsRequest(request, env)
+        return await handleGetMyUploadsRequest(request)
       } catch (error) {
         console.error('Unhandled my uploads request error', error)
         return respondJson(
@@ -2187,7 +1916,7 @@ export default {
       }
 
       try {
-        return await handleGetMyEntitlementsRequest(request, env)
+        return await handleGetMyEntitlementsRequest(request)
       } catch (error) {
         console.error('Unhandled entitlements request error', error)
         return respondJson(
@@ -2220,7 +1949,7 @@ export default {
       }
 
       try {
-        return await handleDeleteMyUploadRequest(request, env, uploadId)
+        return await handleDeleteMyUploadRequest(request, uploadId)
       } catch (error) {
         console.error('Unhandled delete upload request error', error)
         return respondJson(
@@ -2237,41 +1966,29 @@ export default {
         return methodNotAllowed('POST')
       }
 
-      return runWithRequestTelemetry(
-        request,
-        env,
-        context,
-        'upload',
-        async () => {
-          try {
-            return await handleUploadRequest(request, env)
-          } catch (error) {
-            console.error('Unhandled upload request error', error)
-            return respondJson(
-              {
-                error: 'Upload failed unexpectedly. Please retry.',
-              },
-              500,
-            )
-          }
-        },
-      )
+      try {
+        return await handleUploadRequest(request)
+      } catch (error) {
+        console.error('Unhandled upload request error', error)
+        return respondJson(
+          {
+            error: 'Upload failed unexpectedly. Please retry.',
+          },
+          500,
+        )
+      }
     }
 
     if (url.pathname.startsWith('/i/')) {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return methodNotAllowed('GET, HEAD')
       }
-      return handlePublicImageRequest(request, env)
+      return handlePublicImageRequest(request)
     }
 
     return handler.fetch(request)
   },
-  scheduled(
-    _controller: WorkerScheduledController,
-    env: Env,
-    context: WorkerExecutionContext,
-  ) {
-    context.waitUntil(runScheduledMaintenance(env))
+  scheduled(_controller, _workerEnv, context) {
+    context.waitUntil(runScheduledMaintenance())
   },
-} satisfies WorkerHandler
+} satisfies ExportedHandler<Env>

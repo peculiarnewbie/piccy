@@ -13,18 +13,18 @@ export const authUsers = sqliteTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: integer('emailVerified', { mode: 'boolean' }).notNull(),
   image: text('image'),
-  createdAt: text('createdAt').notNull(),
-  updatedAt: text('updatedAt').notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
 })
 
 export const authSessions = sqliteTable(
   'session',
   {
     id: text('id').primaryKey(),
-    expiresAt: text('expiresAt').notNull(),
+    expiresAt: integer('expiresAt', { mode: 'timestamp_ms' }).notNull(),
     token: text('token').notNull().unique(),
-    createdAt: text('createdAt').notNull(),
-    updatedAt: text('updatedAt').notNull(),
+    createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
     ipAddress: text('ipAddress'),
     userAgent: text('userAgent'),
     userId: text('userId')
@@ -48,12 +48,16 @@ export const authAccounts = sqliteTable(
     accessToken: text('accessToken'),
     refreshToken: text('refreshToken'),
     idToken: text('idToken'),
-    accessTokenExpiresAt: text('accessTokenExpiresAt'),
-    refreshTokenExpiresAt: text('refreshTokenExpiresAt'),
+    accessTokenExpiresAt: integer('accessTokenExpiresAt', {
+      mode: 'timestamp_ms',
+    }),
+    refreshTokenExpiresAt: integer('refreshTokenExpiresAt', {
+      mode: 'timestamp_ms',
+    }),
     scope: text('scope'),
     password: text('password'),
-    createdAt: text('createdAt').notNull(),
-    updatedAt: text('updatedAt').notNull(),
+    createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
   },
   (table) => ({
     userIdIdx: index('account_userId_idx').on(table.userId),
@@ -69,10 +73,10 @@ export const authVerifications = sqliteTable(
   {
     id: text('id').primaryKey(),
     identifier: text('identifier').notNull(),
-    value: text('value').notNull(),
-    expiresAt: text('expiresAt').notNull(),
-    createdAt: text('createdAt').notNull(),
-    updatedAt: text('updatedAt').notNull(),
+    value: text('value', { mode: 'json' }).notNull(),
+    expiresAt: integer('expiresAt', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull(),
   },
   (table) => ({
     identifierIdx: index('verification_identifier_idx').on(table.identifier),
@@ -182,32 +186,6 @@ export const requestRateLimits = sqliteTable(
   }),
 )
 
-export const requestTelemetryEvents = sqliteTable(
-  'request_telemetry_events',
-  {
-    id: text('id').primaryKey(),
-    requestType: text('request_type').notNull(),
-    requestPath: text('request_path').notNull(),
-    statusCode: integer('status_code', { mode: 'number' }).notNull(),
-    latencyMs: integer('latency_ms', { mode: 'number' }).notNull(),
-    failed: integer('failed', { mode: 'boolean' }).notNull().default(false),
-    failureReason: text('failure_reason'),
-    createdAt: text('created_at')
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  (table) => ({
-    requestTypeCreatedAtIdx: index('idx_request_telemetry_type_created_at').on(
-      table.requestType,
-      table.createdAt,
-    ),
-    statusCreatedAtIdx: index('idx_request_telemetry_status_created_at').on(
-      table.statusCode,
-      table.createdAt,
-    ),
-  }),
-)
-
 export type Upload = typeof uploads.$inferSelect
 export type NewUpload = typeof uploads.$inferInsert
 
@@ -216,10 +194,6 @@ export type NewUploadCopyEvent = typeof uploadCopyEvents.$inferInsert
 
 export type RequestRateLimit = typeof requestRateLimits.$inferSelect
 export type NewRequestRateLimit = typeof requestRateLimits.$inferInsert
-
-export type RequestTelemetryEvent = typeof requestTelemetryEvents.$inferSelect
-export type NewRequestTelemetryEvent =
-  typeof requestTelemetryEvents.$inferInsert
 
 export type AuthUser = typeof authUsers.$inferSelect
 export type NewAuthUser = typeof authUsers.$inferInsert
