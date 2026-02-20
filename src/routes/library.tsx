@@ -489,7 +489,8 @@ function LibraryWorkspace() {
   const [savingDescription, setSavingDescription] = createSignal(false)
 
   const [searchQuery, setSearchQuery] = createSignal('')
-  const [searchResults, setSearchResults] = createSignal<Array<LibraryItem> | null>(null)
+  const [searchResults, setSearchResults] =
+    createSignal<Array<LibraryItem> | null>(null)
   const [searchLoading, setSearchLoading] = createSignal(false)
   let searchDebounceTimer: number | undefined
 
@@ -516,23 +517,33 @@ function LibraryWorkspace() {
   const saveDescription = async (uploadId: string, text: string) => {
     setSavingDescription(true)
     try {
-      const response = await fetch(`/api/me/uploads/${encodeURIComponent(uploadId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: text }),
-      })
+      const response = await fetch(
+        `/api/me/uploads/${encodeURIComponent(uploadId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: text }),
+        },
+      )
 
       if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as { error?: string }
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string
+        }
         pushToast('error', data.error || 'Failed to save description.')
         return false
       }
 
-      const data = (await response.json()) as { ok: boolean; description: string | null }
+      const data = (await response.json()) as {
+        ok: boolean
+        description: string | null
+      }
 
       setLibraryItems((items) =>
         items.map((item) =>
-          item.id === uploadId ? { ...item, description: data.description } : item,
+          item.id === uploadId
+            ? { ...item, description: data.description }
+            : item,
         ),
       )
       pushToast('success', 'Description saved')
@@ -1507,7 +1518,13 @@ function LibraryWorkspace() {
                     </div>
                   }
                 >
-                  <Show when={searchResults() !== null && searchResults()!.length === 0 && !searchLoading()}>
+                  <Show
+                    when={
+                      searchResults() !== null &&
+                      searchResults()!.length === 0 &&
+                      !searchLoading()
+                    }
+                  >
                     <div class="py-8 text-center font-mono text-[12px] text-text-dim">
                       No results found.
                     </div>
@@ -1526,34 +1543,26 @@ function LibraryWorkspace() {
                           Boolean(deletingById()[item.id])
 
                         return (
-                          <div
-                            ref={(element) => {
-                              cardRefs.set(item.id, element)
-                            }}
-                            role="button"
-                            tabindex="0"
-                            class={`group relative mb-2 break-inside-avoid overflow-hidden rounded-[10px] border-2 transition-all outline-none ${
-                              isCopied()
-                                ? 'border-mint ring-2 ring-mint/40'
-                                : isRecentlyUploaded()
-                                  ? 'border-secondary ring-2 ring-secondary/45 uploaded-flash'
-                                  : isFocused()
-                                    ? 'border-accent ring-2 ring-accent/35'
-                                    : 'border-border hover:border-border-heavy'
-                            } ${isDeleting() ? 'opacity-60' : ''}`}
-                            onFocus={() => {
-                              setFocusedIndex(index())
-                            }}
-                            onClick={() => {
-                              if (isDeleting()) {
-                                return
-                              }
-
-                              void copyLibraryItem(item, getCardFormat(item.id))
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault()
+                          <>
+                            <div
+                              ref={(element) => {
+                                cardRefs.set(item.id, element)
+                              }}
+                              role="button"
+                              tabindex="0"
+                              class={`group relative mb-2 break-inside-avoid overflow-hidden rounded-[10px] border-2 transition-all outline-none ${
+                                isCopied()
+                                  ? 'border-mint ring-2 ring-mint/40'
+                                  : isRecentlyUploaded()
+                                    ? 'border-secondary ring-2 ring-secondary/45 uploaded-flash'
+                                    : isFocused()
+                                      ? 'border-accent ring-2 ring-accent/35'
+                                      : 'border-border hover:border-border-heavy'
+                              } ${isDeleting() ? 'opacity-60' : ''}`}
+                              onFocus={() => {
+                                setFocusedIndex(index())
+                              }}
+                              onClick={() => {
                                 if (isDeleting()) {
                                   return
                                 }
@@ -1562,109 +1571,136 @@ function LibraryWorkspace() {
                                   item,
                                   getCardFormat(item.id),
                                 )
-                              }
-                            }}
-                          >
-                            <img
-                              src={item.thumbUrl}
-                              alt=""
-                              loading="lazy"
-                              decoding="async"
-                              class="block w-full h-auto bg-surface-2"
-                            />
+                              }}
+                              onKeyDown={(event) => {
+                                if (
+                                  event.key === 'Enter' ||
+                                  event.key === ' '
+                                ) {
+                                  event.preventDefault()
+                                  if (isDeleting()) {
+                                    return
+                                  }
 
-                            <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 to-transparent opacity-65 group-hover:opacity-90 transition-opacity" />
+                                  void copyLibraryItem(
+                                    item,
+                                    getCardFormat(item.id),
+                                  )
+                                }
+                              }}
+                            >
+                              <img
+                                src={item.thumbUrl}
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                class="block w-full h-auto bg-surface-2"
+                              />
 
-                            <Show when={item.copyCount > 0}>
-                              <div class="absolute top-1 left-1 md:top-1.5 md:left-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim">
-                                {item.copyCount} copies
+                              <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 to-transparent opacity-65 group-hover:opacity-90 transition-opacity" />
+
+                              <Show when={item.copyCount > 0}>
+                                <div class="absolute top-1 left-1 md:top-1.5 md:left-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim">
+                                  {item.copyCount} copies
+                                </div>
+                              </Show>
+
+                              <div class="absolute top-1 right-1 md:top-1.5 md:right-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim uppercase">
+                                {item.mimeType.replace('image/', '')}
                               </div>
-                            </Show>
 
-                            <div class="absolute top-1 right-1 md:top-1.5 md:right-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim uppercase">
-                              {item.mimeType.replace('image/', '')}
-                            </div>
+                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                                <div class="pointer-events-auto">
+                                  <FormatButton
+                                    label="URL"
+                                    active={getCardFormat(item.id) === 'direct'}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      if (isDeleting()) {
+                                        return
+                                      }
 
-                            <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
-                              <div class="pointer-events-auto">
-                                <FormatButton
-                                  label="URL"
-                                  active={getCardFormat(item.id) === 'direct'}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    if (isDeleting()) {
-                                      return
-                                    }
+                                      void copyLibraryItem(item, 'direct')
+                                    }}
+                                  />
+                                </div>
 
-                                    void copyLibraryItem(item, 'direct')
+                                <CardOverflowMenu
+                                  item={item}
+                                  isDeleting={isDeleting}
+                                  onCopyFormat={(format) => {
+                                    void copyLibraryItem(item, format)
+                                  }}
+                                  onEditDescription={() => {
+                                    setEditingDescriptionId(item.id)
+                                    setEditingDescriptionText(
+                                      item.description ?? '',
+                                    )
+                                  }}
+                                  onDelete={() => {
+                                    void deleteUploadById(item.id)
                                   }}
                                 />
                               </div>
 
-                              <CardOverflowMenu
-                                item={item}
-                                isDeleting={isDeleting}
-                                onCopyFormat={(format) => {
-                                  void copyLibraryItem(item, format)
-                                }}
-                                onEditDescription={() => {
-                                  setEditingDescriptionId(item.id)
-                                  setEditingDescriptionText(item.description ?? '')
-                                }}
-                                onDelete={() => {
-                                  void deleteUploadById(item.id)
-                                }}
-                              />
+                              {/* Description badge */}
+                              <Show
+                                when={
+                                  item.description &&
+                                  editingDescriptionId() !== item.id
+                                }
+                              >
+                                <div class="absolute bottom-8 left-1 right-1 md:bottom-9 md:left-1.5 md:right-1.5 px-2 py-1 rounded-md bg-bg/85 border border-border font-mono text-[10px] text-text-dim truncate pointer-events-none">
+                                  {item.description}
+                                </div>
+                              </Show>
                             </div>
 
-                            {/* Description badge */}
-                            <Show when={item.description && editingDescriptionId() !== item.id}>
-                              <div class="absolute bottom-8 left-1 right-1 md:bottom-9 md:left-1.5 md:right-1.5 px-2 py-1 rounded-md bg-bg/85 border border-border font-mono text-[10px] text-text-dim truncate pointer-events-none">
-                                {item.description}
+                            {/* Inline description editor */}
+                            <Show when={editingDescriptionId() === item.id}>
+                              <div
+                                class="mb-2 p-2 rounded-lg border-2 border-accent/40 bg-surface"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <textarea
+                                  rows={2}
+                                  maxLength={500}
+                                  class="w-full rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-[11px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none resize-none"
+                                  placeholder="Add a description..."
+                                  value={editingDescriptionText()}
+                                  onInput={(e) =>
+                                    setEditingDescriptionText(
+                                      e.currentTarget.value,
+                                    )
+                                  }
+                                />
+                                <div class="flex items-center gap-2 mt-1.5">
+                                  <button
+                                    type="button"
+                                    class="btn btn-accent text-[10px] py-0.5 px-2.5"
+                                    disabled={savingDescription()}
+                                    onClick={() => {
+                                      void saveDescription(
+                                        item.id,
+                                        editingDescriptionText(),
+                                      )
+                                    }}
+                                  >
+                                    {savingDescription() ? 'Saving...' : 'Save'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="btn btn-outline text-[10px] py-0.5 px-2.5"
+                                    onClick={() =>
+                                      setEditingDescriptionId(null)
+                                    }
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
                             </Show>
-                          </div>
-
-                          {/* Inline description editor */}
-                          <Show when={editingDescriptionId() === item.id}>
-                            <div
-                              class="mb-2 p-2 rounded-lg border-2 border-accent/40 bg-surface"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <textarea
-                                rows={2}
-                                maxLength={500}
-                                class="w-full rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-[11px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none resize-none"
-                                placeholder="Add a description..."
-                                value={editingDescriptionText()}
-                                onInput={(e) =>
-                                  setEditingDescriptionText(e.currentTarget.value)
-                                }
-                              />
-                              <div class="flex items-center gap-2 mt-1.5">
-                                <button
-                                  type="button"
-                                  class="btn btn-accent text-[10px] py-0.5 px-2.5"
-                                  disabled={savingDescription()}
-                                  onClick={() => {
-                                    void saveDescription(
-                                      item.id,
-                                      editingDescriptionText(),
-                                    )
-                                  }}
-                                >
-                                  {savingDescription() ? 'Saving...' : 'Save'}
-                                </button>
-                                <button
-                                  type="button"
-                                  class="btn btn-outline text-[10px] py-0.5 px-2.5"
-                                  onClick={() => setEditingDescriptionId(null)}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          </Show>
+                          </>
                         )
                       }}
                     </For>
@@ -1677,7 +1713,11 @@ function LibraryWorkspace() {
                   </Show>
 
                   <Show
-                    when={!searchResults() && !libraryNextCursor() && libraryItems().length > 0}
+                    when={
+                      !searchResults() &&
+                      !libraryNextCursor() &&
+                      libraryItems().length > 0
+                    }
                   >
                     <div class="pt-2 pb-1 text-center font-mono text-[10px] uppercase tracking-[1.3px] text-text-dim">
                       End of library
@@ -1817,80 +1857,86 @@ function LibraryWorkspace() {
               {/* Share output */}
               <Show when={uploadResult()}>
                 {(result) => (
-                  <div class="p-4 border-2 border-border rounded-xl bg-surface">
-                    <p class="font-mono text-[10px] text-text-dim uppercase tracking-[1.5px] mb-3">
-                      Share Output
-                    </p>
-                    <div class="flex flex-col gap-2">
-                      <OutputRow
-                        label="URL"
-                        value={result().directUrl}
-                        onCopy={() => {
-                          void copyValue(
-                            result().directUrl,
-                            'Direct URL copied',
-                            {
+                  <>
+                    <div class="p-4 border-2 border-border rounded-xl bg-surface">
+                      <p class="font-mono text-[10px] text-text-dim uppercase tracking-[1.5px] mb-3">
+                        Share Output
+                      </p>
+                      <div class="flex flex-col gap-2">
+                        <OutputRow
+                          label="URL"
+                          value={result().directUrl}
+                          onCopy={() => {
+                            void copyValue(
+                              result().directUrl,
+                              'Direct URL copied',
+                              {
+                                uploadId: result().id,
+                                format: 'direct',
+                                source: 'uploader',
+                              },
+                            )
+                          }}
+                        />
+                        <OutputRow
+                          label="MD"
+                          value={result().markdown}
+                          onCopy={() => {
+                            void copyValue(
+                              result().markdown,
+                              'Markdown copied',
+                              {
+                                uploadId: result().id,
+                                format: 'markdown',
+                                source: 'uploader',
+                              },
+                            )
+                          }}
+                        />
+                        <OutputRow
+                          label="BB"
+                          value={result().bbcode}
+                          onCopy={() => {
+                            void copyValue(result().bbcode, 'BBCode copied', {
                               uploadId: result().id,
-                              format: 'direct',
+                              format: 'bbcode',
                               source: 'uploader',
-                            },
-                          )
-                        }}
-                      />
-                      <OutputRow
-                        label="MD"
-                        value={result().markdown}
-                        onCopy={() => {
-                          void copyValue(result().markdown, 'Markdown copied', {
-                            uploadId: result().id,
-                            format: 'markdown',
-                            source: 'uploader',
-                          })
-                        }}
-                      />
-                      <OutputRow
-                        label="BB"
-                        value={result().bbcode}
-                        onCopy={() => {
-                          void copyValue(result().bbcode, 'BBCode copied', {
-                            uploadId: result().id,
-                            format: 'bbcode',
-                            source: 'uploader',
-                          })
-                        }}
-                      />
+                            })
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Description textarea (post-upload) */}
-                  <div class="mt-3">
-                    <textarea
-                      placeholder="Add a description (optional)"
-                      maxLength={500}
-                      rows={2}
-                      class="w-full rounded-lg border-2 border-border bg-bg px-3 py-2 font-mono text-[12px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none resize-none"
-                      onInput={(e) => {
-                        const el = e.currentTarget
-                        el.dataset.desc = el.value
-                      }}
-                    />
-                    <button
-                      type="button"
-                      class="btn btn-outline text-[11px] py-1 px-3 mt-1.5"
-                      onClick={async (e) => {
-                        const textarea = e.currentTarget
-                          .previousElementSibling as HTMLTextAreaElement
-                        const text = textarea?.value?.trim() ?? ''
-                        if (!text) return
-                        const ok = await saveDescription(result().id, text)
-                        if (ok && textarea) {
-                          textarea.value = ''
-                        }
-                      }}
-                    >
-                      Save description
-                    </button>
-                  </div>
+                    {/* Description textarea (post-upload) */}
+                    <div class="mt-3">
+                      <textarea
+                        placeholder="Add a description (optional)"
+                        maxLength={500}
+                        rows={2}
+                        class="w-full rounded-lg border-2 border-border bg-bg px-3 py-2 font-mono text-[12px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none resize-none"
+                        onInput={(e) => {
+                          const el = e.currentTarget
+                          el.dataset.desc = el.value
+                        }}
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-outline text-[11px] py-1 px-3 mt-1.5"
+                        onClick={async (e) => {
+                          const textarea = e.currentTarget
+                            .previousElementSibling as HTMLTextAreaElement
+                          const text = textarea?.value?.trim() ?? ''
+                          if (!text) return
+                          const ok = await saveDescription(result().id, text)
+                          if (ok && textarea) {
+                            textarea.value = ''
+                          }
+                        }}
+                      >
+                        Save description
+                      </button>
+                    </div>
+                  </>
                 )}
               </Show>
             </div>
