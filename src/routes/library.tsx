@@ -36,6 +36,7 @@ type LibraryItem = UploadPayload & {
   width: number | null
   height: number | null
   copyCount: number
+  description?: string | null
   createdAt: string
   isSeeded?: boolean
 }
@@ -481,6 +482,17 @@ function LibraryWorkspace() {
 
   const [toasts, setToasts] = createSignal<Array<ToastEntry>>([])
 
+  const [editingDescriptionId, setEditingDescriptionId] = createSignal<
+    string | null
+  >(null)
+  const [editingDescriptionText, setEditingDescriptionText] = createSignal('')
+  const [savingDescription, setSavingDescription] = createSignal(false)
+
+  const [searchQuery, setSearchQuery] = createSignal('')
+  const [searchResults, setSearchResults] = createSignal<Array<LibraryItem> | null>(null)
+  const [searchLoading, setSearchLoading] = createSignal(false)
+  let searchDebounceTimer: number | undefined
+
   const cardRefs = new Map<string, HTMLDivElement>()
 
   let fileInputRef: HTMLInputElement | undefined
@@ -499,6 +511,84 @@ function LibraryWorkspace() {
     window.setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id))
     }, ttlMs)
+  }
+
+  const saveDescription = async (uploadId: string, text: string) => {
+    setSavingDescription(true)
+    try {
+      const response = await fetch(`/api/me/uploads/${encodeURIComponent(uploadId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: text }),
+      })
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as { error?: string }
+        pushToast('error', data.error || 'Failed to save description.')
+        return false
+      }
+
+      const data = (await response.json()) as { ok: boolean; description: string | null }
+
+      setLibraryItems((items) =>
+        items.map((item) =>
+          item.id === uploadId ? { ...item, description: data.description } : item,
+        ),
+      )
+      pushToast('success', 'Description saved')
+      setEditingDescriptionId(null)
+      return true
+    } catch {
+      pushToast('error', 'Failed to save description.')
+      return false
+    } finally {
+      setSavingDescription(false)
+    }
+  }
+
+  const performSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults(null)
+      setSearchLoading(false)
+      return
+    }
+
+    setSearchLoading(true)
+    try {
+      const response = await fetch(
+        `/api/me/uploads/search?q=${encodeURIComponent(query.trim())}`,
+      )
+
+      if (!response.ok) {
+        pushToast('error', 'Search failed.')
+        setSearchResults(null)
+        return
+      }
+
+      const data = (await response.json()) as { items: Array<LibraryItem> }
+      setSearchResults(data.items)
+    } catch {
+      pushToast('error', 'Search failed.')
+      setSearchResults(null)
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const onSearchInput = (value: string) => {
+    setSearchQuery(value)
+    if (searchDebounceTimer !== undefined) {
+      window.clearTimeout(searchDebounceTimer)
+    }
+    if (!value.trim()) {
+      setSearchResults(null)
+      setSearchLoading(false)
+      return
+    }
+    setSearchLoading(true)
+    searchDebounceTimer = window.setTimeout(() => {
+      void performSearch(value)
+    }, 300)
   }
 
   const markCopiedCard = (uploadId: string) => {
@@ -1299,6 +1389,47 @@ function LibraryWorkspace() {
             </div>
           </div>
 
+          {/* Search bar */}
+          <div class="px-2 md:px-4 pt-2 md:pt-3">
+            <div class="relative">
+              <input
+                type="text"
+                placeholder="Search descriptions..."
+                class="w-full rounded-lg border-2 border-border bg-surface px-3 py-1.5 pl-8 font-mono text-[12px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none"
+                value={searchQuery()}
+                onInput={(e) => onSearchInput(e.currentTarget.value)}
+              />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 stroke-current text-text-dim"
+                stroke-width="2.5"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <Show when={searchQuery()}>
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim hover:text-text text-[11px] font-mono"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSearchResults(null)
+                  }}
+                >
+                  Clear
+                </button>
+              </Show>
+            </div>
+            <Show when={searchLoading()}>
+              <div class="mt-1 font-mono text-[10px] text-text-dim">
+                Searching...
+              </div>
+            </Show>
+          </div>
+
           {/* Library grid */}
           <div
             ref={libraryScrollRef}
@@ -1376,11 +1507,16 @@ function LibraryWorkspace() {
                     </div>
                   }
                 >
+                  <Show when={searchResults() !== null && searchResults()!.length === 0 && !searchLoading()}>
+                    <div class="py-8 text-center font-mono text-[12px] text-text-dim">
+                      No results found.
+                    </div>
+                  </Show>
                   <div
                     class="gap-2 [column-fill:_balance]"
                     style={{ 'column-count': getLibraryColumnCount() }}
                   >
-                    <For each={libraryItems()}>
+                    <For each={searchResults() ?? libraryItems()}>
                       {(item, index) => {
                         const isFocused = () => focusedIndex() === index()
                         const isCopied = () => copiedCardId() === item.id
@@ -1471,25 +1607,77 @@ function LibraryWorkspace() {
                                 onCopyFormat={(format) => {
                                   void copyLibraryItem(item, format)
                                 }}
+                                onEditDescription={() => {
+                                  setEditingDescriptionId(item.id)
+                                  setEditingDescriptionText(item.description ?? '')
+                                }}
                                 onDelete={() => {
                                   void deleteUploadById(item.id)
                                 }}
                               />
                             </div>
+
+                            {/* Description badge */}
+                            <Show when={item.description && editingDescriptionId() !== item.id}>
+                              <div class="absolute bottom-8 left-1 right-1 md:bottom-9 md:left-1.5 md:right-1.5 px-2 py-1 rounded-md bg-bg/85 border border-border font-mono text-[10px] text-text-dim truncate pointer-events-none">
+                                {item.description}
+                              </div>
+                            </Show>
                           </div>
+
+                          {/* Inline description editor */}
+                          <Show when={editingDescriptionId() === item.id}>
+                            <div
+                              class="mb-2 p-2 rounded-lg border-2 border-accent/40 bg-surface"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <textarea
+                                rows={2}
+                                maxLength={500}
+                                class="w-full rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-[11px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none resize-none"
+                                placeholder="Add a description..."
+                                value={editingDescriptionText()}
+                                onInput={(e) =>
+                                  setEditingDescriptionText(e.currentTarget.value)
+                                }
+                              />
+                              <div class="flex items-center gap-2 mt-1.5">
+                                <button
+                                  type="button"
+                                  class="btn btn-accent text-[10px] py-0.5 px-2.5"
+                                  disabled={savingDescription()}
+                                  onClick={() => {
+                                    void saveDescription(
+                                      item.id,
+                                      editingDescriptionText(),
+                                    )
+                                  }}
+                                >
+                                  {savingDescription() ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn btn-outline text-[10px] py-0.5 px-2.5"
+                                  onClick={() => setEditingDescriptionId(null)}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </Show>
                         )
                       }}
                     </For>
                   </div>
 
-                  <Show when={libraryLoadingMore()}>
+                  <Show when={!searchResults() && libraryLoadingMore()}>
                     <div class="pt-2 pb-1 text-center font-mono text-[11px] text-text-dim">
                       Loading more...
                     </div>
                   </Show>
 
                   <Show
-                    when={!libraryNextCursor() && libraryItems().length > 0}
+                    when={!searchResults() && !libraryNextCursor() && libraryItems().length > 0}
                   >
                     <div class="pt-2 pb-1 text-center font-mono text-[10px] uppercase tracking-[1.3px] text-text-dim">
                       End of library
@@ -1673,6 +1861,36 @@ function LibraryWorkspace() {
                       />
                     </div>
                   </div>
+
+                  {/* Description textarea (post-upload) */}
+                  <div class="mt-3">
+                    <textarea
+                      placeholder="Add a description (optional)"
+                      maxLength={500}
+                      rows={2}
+                      class="w-full rounded-lg border-2 border-border bg-bg px-3 py-2 font-mono text-[12px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none resize-none"
+                      onInput={(e) => {
+                        const el = e.currentTarget
+                        el.dataset.desc = el.value
+                      }}
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-outline text-[11px] py-1 px-3 mt-1.5"
+                      onClick={async (e) => {
+                        const textarea = e.currentTarget
+                          .previousElementSibling as HTMLTextAreaElement
+                        const text = textarea?.value?.trim() ?? ''
+                        if (!text) return
+                        const ok = await saveDescription(result().id, text)
+                        if (ok && textarea) {
+                          textarea.value = ''
+                        }
+                      }}
+                    >
+                      Save description
+                    </button>
+                  </div>
                 )}
               </Show>
             </div>
@@ -1728,6 +1946,7 @@ function CardOverflowMenu(props: {
   item: LibraryItem
   isDeleting: Accessor<boolean>
   onCopyFormat: (format: CopyFormat) => void
+  onEditDescription: () => void
   onDelete: () => void
 }) {
   const [open, setOpen] = createSignal(false)
@@ -1786,6 +2005,17 @@ function CardOverflowMenu(props: {
             }}
           >
             Copy as BB
+          </button>
+          <button
+            type="button"
+            class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
+            onClick={(event) => {
+              event.stopPropagation()
+              closeMenu()
+              props.onEditDescription()
+            }}
+          >
+            Describe
           </button>
           <Show when={!props.item.isSeeded}>
             <div class="border-t border-border" />

@@ -106,6 +106,7 @@ export const uploads = sqliteTable(
     width: integer('width', { mode: 'number' }),
     height: integer('height', { mode: 'number' }),
     sha256: text('sha256'),
+    description: text('description'),
     copyCount: integer('copy_count', { mode: 'number' }).notNull().default(0),
     createdAt: text('created_at')
       .notNull()

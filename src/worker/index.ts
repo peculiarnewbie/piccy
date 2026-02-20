@@ -89,6 +89,7 @@ type UploadQueryRow = {
   webp_r2_key: string | null
   webp_size_bytes: number | null
   optimization_status: string
+  description: string | null
 }
 
 type UploadListItem = {
@@ -104,6 +105,7 @@ type UploadListItem = {
   height: number | null
   copyCount: number
   optimizationStatus: string
+  description: string | null
   createdAt: string
 }
 
@@ -1292,6 +1294,7 @@ const toUploadListItem = (
     height: row.height,
     copyCount: row.copy_count,
     optimizationStatus: row.optimization_status,
+    description: row.description,
     createdAt: row.created_at,
   }
 }
@@ -1355,7 +1358,8 @@ const handleGetMyUploadsRequest = async (
          thumb_r2_key,
          webp_r2_key,
          webp_size_bytes,
-         optimization_status
+         optimization_status,
+         description
         FROM uploads
        WHERE ${ownerScope.ownerField} = ?
          AND deleted_at IS NULL
@@ -1391,7 +1395,8 @@ const handleGetMyUploadsRequest = async (
          thumb_r2_key,
          webp_r2_key,
          webp_size_bytes,
-         optimization_status
+         optimization_status,
+         description
         FROM uploads
        WHERE ${ownerScope.ownerField} = ?
          AND deleted_at IS NULL
@@ -1510,6 +1515,153 @@ const handleDeleteMyUploadRequest = async (
 
   return withSetCookieHeader(
     new Response(null, { status: 204 }),
+    identity.setCookieHeader,
+  )
+}
+
+const handleUpdateMyUploadDescription = async (
+  request: Request,
+  uploadId: string,
+): Promise<Response> => {
+  const identity = await resolveRequestIdentity(request, {
+    ensureAnonymousId: true,
+    migrateAnonymousToUser: true,
+  })
+
+  if (identity.authSessionLookupFailed) {
+    return respondAuthSessionUnavailable(identity.setCookieHeader)
+  }
+
+  const ownerScope = resolveOwnerScope(identity)
+
+  if (!ownerScope) {
+    return withSetCookieHeader(
+      respondJson(
+        {
+          error: 'Failed to resolve library owner identity.',
+        },
+        500,
+      ),
+      identity.setCookieHeader,
+    )
+  }
+
+  let body: { description?: unknown }
+  try {
+    body = (await request.json()) as { description?: unknown }
+  } catch {
+    return withSetCookieHeader(
+      respondJson({ error: 'Invalid JSON body.' }, 400),
+      identity.setCookieHeader,
+    )
+  }
+
+  if (typeof body.description !== 'string') {
+    return withSetCookieHeader(
+      respondJson({ error: 'description must be a string.' }, 400),
+      identity.setCookieHeader,
+    )
+  }
+
+  const description = body.description.trim().slice(0, 500)
+
+  const result = await env.DB.prepare(
+    `UPDATE uploads
+       SET description = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+       AND ${ownerScope.ownerField} = ?
+       AND deleted_at IS NULL`,
+  )
+    .bind(description || null, uploadId, ownerScope.ownerId)
+    .run()
+
+  if (!result.meta.changes) {
+    return withSetCookieHeader(
+      respondJson({ error: 'Upload not found.' }, 404),
+      identity.setCookieHeader,
+    )
+  }
+
+  return withSetCookieHeader(
+    respondJson({ ok: true, description: description || null }),
+    identity.setCookieHeader,
+  )
+}
+
+const handleSearchUploadsRequest = async (
+  request: Request,
+): Promise<Response> => {
+  const identity = await resolveRequestIdentity(request, {
+    ensureAnonymousId: true,
+    migrateAnonymousToUser: true,
+  })
+
+  if (identity.authSessionLookupFailed) {
+    return respondAuthSessionUnavailable(identity.setCookieHeader)
+  }
+
+  const ownerScope = resolveOwnerScope(identity)
+
+  if (!ownerScope) {
+    return withSetCookieHeader(
+      respondJson(
+        {
+          error: 'Failed to resolve library owner identity.',
+        },
+        500,
+      ),
+      identity.setCookieHeader,
+    )
+  }
+
+  const url = new URL(request.url)
+  const query = (url.searchParams.get('q') ?? '').trim()
+
+  if (!query) {
+    return withSetCookieHeader(
+      respondJson({ items: [] }),
+      identity.setCookieHeader,
+    )
+  }
+
+  // Escape FTS5 special chars by wrapping each term in double quotes
+  const safeQuery = query
+    .split(/\s+/)
+    .filter((t) => t.length > 0)
+    .map((t) => `"${t.replace(/"/g, '""')}"`)
+    .join(' ')
+
+  const result = await env.DB.prepare(
+    `SELECT
+       u.id,
+       u.r2_key,
+       u.public_url,
+       u.mime_type,
+       u.size_bytes,
+       u.width,
+       u.height,
+       u.copy_count,
+       u.created_at,
+       u.thumb_r2_key,
+       u.webp_r2_key,
+       u.webp_size_bytes,
+       u.optimization_status,
+       u.description
+     FROM uploads u
+     JOIN uploads_fts fts ON u.id = fts.id
+    WHERE fts.description MATCH ?
+      AND u.${ownerScope.ownerField} = ?
+      AND u.deleted_at IS NULL
+    ORDER BY rank
+    LIMIT 50`,
+  )
+    .bind(safeQuery, ownerScope.ownerId)
+    .all<UploadQueryRow>()
+
+  const items = result.results.map((row) => toUploadListItem(request, row))
+
+  return withSetCookieHeader(
+    respondJson({ items }),
     identity.setCookieHeader,
   )
 }
@@ -1913,15 +2065,33 @@ export default {
       }
     }
 
-    const deleteUploadRouteMatch = url.pathname.match(
-      /^\/api\/me\/uploads\/([^/]+)$/,
-    )
-    if (deleteUploadRouteMatch) {
-      if (request.method !== 'DELETE') {
-        return methodNotAllowed('DELETE')
+    if (url.pathname === '/api/me/uploads/search') {
+      if (request.method !== 'GET') {
+        return methodNotAllowed('GET')
       }
 
-      const encodedUploadId = deleteUploadRouteMatch[1]
+      try {
+        return await handleSearchUploadsRequest(request)
+      } catch (error) {
+        console.error('Unhandled search uploads request error', error)
+        return respondJson(
+          {
+            error: 'Failed to search uploads unexpectedly. Please retry.',
+          },
+          500,
+        )
+      }
+    }
+
+    const uploadRouteMatch = url.pathname.match(
+      /^\/api\/me\/uploads\/([^/]+)$/,
+    )
+    if (uploadRouteMatch) {
+      if (request.method !== 'DELETE' && request.method !== 'PATCH') {
+        return methodNotAllowed('DELETE, PATCH')
+      }
+
+      const encodedUploadId = uploadRouteMatch[1]
       const uploadId = safeDecodeURIComponent(encodedUploadId)
 
       if (!uploadId) {
@@ -1934,12 +2104,15 @@ export default {
       }
 
       try {
+        if (request.method === 'PATCH') {
+          return await handleUpdateMyUploadDescription(request, uploadId)
+        }
         return await handleDeleteMyUploadRequest(request, uploadId)
       } catch (error) {
-        console.error('Unhandled delete upload request error', error)
+        console.error('Unhandled upload route request error', error)
         return respondJson(
           {
-            error: 'Failed to delete upload unexpectedly. Please retry.',
+            error: 'Request failed unexpectedly. Please retry.',
           },
           500,
         )
