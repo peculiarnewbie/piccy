@@ -498,8 +498,28 @@ function LibraryWorkspace() {
 
   let fileInputRef: HTMLInputElement | undefined
   let libraryScrollRef: HTMLDivElement | undefined
+  let descriptionEditorRef: HTMLTextAreaElement | undefined
   let copiedCardTimer: number | undefined
   let highlightedUploadTimer: number | undefined
+
+  const focusDescriptionEditor = () => {
+    if (!descriptionEditorRef) {
+      return
+    }
+
+    descriptionEditorRef.focus()
+    const caretPosition = descriptionEditorRef.value.length
+    descriptionEditorRef.setSelectionRange(caretPosition, caretPosition)
+  }
+
+  const beginDescriptionEdit = (item: LibraryItem) => {
+    setEditingDescriptionId(item.id)
+    setEditingDescriptionText(item.description ?? '')
+
+    window.requestAnimationFrame(() => {
+      focusDescriptionEditor()
+    })
+  }
 
   const pushToast = (tone: ToastTone, message: string, ttlMs = 2200) => {
     const id =
@@ -1599,17 +1619,45 @@ function LibraryWorkspace() {
 
                               <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 to-transparent opacity-65 group-hover:opacity-90 transition-opacity" />
 
-                              <Show when={item.copyCount > 0}>
-                                <div class="absolute top-1 left-1 md:top-1.5 md:left-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim">
-                                  {item.copyCount} copies
-                                </div>
-                              </Show>
+                              <div class="absolute top-1 left-1 right-12 md:top-1.5 md:left-1.5 md:right-14 z-20 flex items-center gap-1">
+                                <Show when={item.copyCount > 0}>
+                                  <div class="shrink-0 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim">
+                                    {item.copyCount} copies
+                                  </div>
+                                </Show>
 
-                              <div class="absolute top-1 right-1 md:top-1.5 md:right-1.5 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim uppercase">
+                                <Show
+                                  when={
+                                    item.description &&
+                                    editingDescriptionId() !== item.id
+                                  }
+                                >
+                                  <div
+                                    class="pointer-events-auto group/description flex min-w-0 items-center gap-1"
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
+                                    <span class="block min-w-0 max-w-full truncate rounded-full border border-transparent bg-transparent px-1.5 md:px-2 py-px md:py-0.5 font-mono text-[9px] md:text-[10px] text-text-dim transition-colors group-hover/description:border-border-heavy group-hover/description:bg-surface/95 group-focus-within/description:border-border-heavy group-focus-within/description:bg-surface/95">
+                                      {item.description}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      class="shrink-0 h-5 px-1.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] text-text-dim hover:text-text hover:border-text-dim transition-all opacity-100 md:opacity-0 md:group-hover/description:opacity-100 md:group-focus-within/description:opacity-100"
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        beginDescriptionEdit(item)
+                                      }}
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                </Show>
+                              </div>
+
+                              <div class="absolute top-1 right-1 md:top-1.5 md:right-1.5 z-20 px-1.5 md:px-2 py-px md:py-0.5 rounded-full border border-border-heavy bg-surface/95 font-mono text-[9px] md:text-[10px] text-text-dim uppercase">
                                 {item.mimeType.replace('image/', '')}
                               </div>
 
-                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 z-30 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
                                 <div class="pointer-events-auto">
                                   <FormatButton
                                     label="URL"
@@ -1632,37 +1680,37 @@ function LibraryWorkspace() {
                                     void copyLibraryItem(item, format)
                                   }}
                                   onEditDescription={() => {
-                                    setEditingDescriptionId(item.id)
-                                    setEditingDescriptionText(
-                                      item.description ?? '',
-                                    )
+                                    beginDescriptionEdit(item)
                                   }}
                                   onDelete={() => {
                                     void deleteUploadById(item.id)
                                   }}
                                 />
                               </div>
-
-                              {/* Description badge */}
-                              <Show
-                                when={
-                                  item.description &&
-                                  editingDescriptionId() !== item.id
-                                }
-                              >
-                                <div class="absolute bottom-8 left-1 right-1 md:bottom-9 md:left-1.5 md:right-1.5 px-2 py-1 rounded-md bg-bg/85 border border-border font-mono text-[10px] text-text-dim truncate pointer-events-none">
-                                  {item.description}
-                                </div>
-                              </Show>
                             </div>
 
                             {/* Inline description editor */}
                             <Show when={editingDescriptionId() === item.id}>
-                              <div
+                              <form
                                 class="mb-2 p-2 rounded-lg border-2 border-accent/40 bg-surface"
                                 onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(event) => event.stopPropagation()}
+                                onSubmit={(event) => {
+                                  event.preventDefault()
+                                  if (savingDescription()) {
+                                    return
+                                  }
+
+                                  void saveDescription(
+                                    item.id,
+                                    editingDescriptionText(),
+                                  )
+                                }}
                               >
                                 <textarea
+                                  ref={(element) => {
+                                    descriptionEditorRef = element
+                                  }}
                                   rows={2}
                                   maxLength={500}
                                   class="w-full rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-[11px] text-text placeholder:text-text-dim/50 focus:border-accent focus:outline-none resize-none"
@@ -1673,18 +1721,29 @@ function LibraryWorkspace() {
                                       e.currentTarget.value,
                                     )
                                   }
-                                />
-                                <div class="flex items-center gap-2 mt-1.5">
-                                  <button
-                                    type="button"
-                                    class="btn btn-accent text-[10px] py-0.5 px-2.5"
-                                    disabled={savingDescription()}
-                                    onClick={() => {
+                                  onKeyDown={(event) => {
+                                    event.stopPropagation()
+                                    if (
+                                      event.key === 'Enter' &&
+                                      !event.shiftKey
+                                    ) {
+                                      event.preventDefault()
+                                      if (savingDescription()) {
+                                        return
+                                      }
+
                                       void saveDescription(
                                         item.id,
                                         editingDescriptionText(),
                                       )
-                                    }}
+                                    }
+                                  }}
+                                />
+                                <div class="flex items-center gap-2 mt-1.5">
+                                  <button
+                                    type="submit"
+                                    class="btn btn-accent text-[10px] py-0.5 px-2.5"
+                                    disabled={savingDescription()}
                                   >
                                     {savingDescription() ? 'Saving...' : 'Save'}
                                   </button>
@@ -1698,7 +1757,7 @@ function LibraryWorkspace() {
                                     Cancel
                                   </button>
                                 </div>
-                              </div>
+                              </form>
                             </Show>
                           </>
                         )
@@ -2015,10 +2074,10 @@ function CardOverflowMenu(props: {
   })
 
   return (
-    <div ref={menuRef} class="pointer-events-auto relative">
+    <div ref={menuRef} class="pointer-events-auto relative z-40">
       <button
         type="button"
-        class="h-6 w-6 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-text hover:border-text-dim transition-colors font-mono text-[12px] font-bold leading-none flex items-center justify-center"
+        class="relative z-40 h-6 w-6 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-text hover:border-text-dim transition-colors font-mono text-[12px] font-bold leading-none flex items-center justify-center"
         onClick={(event) => {
           event.stopPropagation()
           setOpen((v) => !v)
@@ -2029,7 +2088,7 @@ function CardOverflowMenu(props: {
       </button>
 
       <Show when={open()}>
-        <div class="absolute bottom-full right-0 mb-1.5 w-[120px] rounded-lg border-2 border-border-heavy bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-10">
+        <div class="absolute bottom-full right-0 mb-1.5 w-[120px] rounded-lg border-2 border-border-heavy bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-50">
           <button
             type="button"
             class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"

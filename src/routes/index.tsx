@@ -1198,7 +1198,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                                 {item.mimeType.replace('image/', '')}
                               </div>
 
-                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 z-30 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
                                 <div class="pointer-events-auto">
                                   <FormatButton
                                     label="URL"
@@ -1458,7 +1458,7 @@ export function PiccyWorkspace(props: { view?: 'home' | 'library' }) {
                                 {item.mimeType.replace('image/', '')}
                               </div>
 
-                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                              <div class="absolute bottom-1 left-1 right-1 md:bottom-1.5 md:left-1.5 md:right-1.5 z-30 flex items-center justify-between gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
                                 <div class="pointer-events-auto">
                                   <FormatButton
                                     label="URL"
@@ -1751,10 +1751,10 @@ function CardOverflowMenu(props: {
   })
 
   return (
-    <div ref={menuRef} class="pointer-events-auto relative">
+    <div ref={menuRef} class="pointer-events-auto relative z-40">
       <button
         type="button"
-        class="h-6 w-6 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-text hover:border-text-dim transition-colors font-mono text-[12px] font-bold leading-none flex items-center justify-center"
+        class="relative z-40 h-6 w-6 rounded-full border border-border-heavy bg-surface/95 text-text-dim hover:text-text hover:border-text-dim transition-colors font-mono text-[12px] font-bold leading-none flex items-center justify-center"
         onClick={(event) => {
           event.stopPropagation()
           setOpen((v) => !v)
@@ -1765,7 +1765,7 @@ function CardOverflowMenu(props: {
       </button>
 
       <Show when={open()}>
-        <div class="absolute bottom-full right-0 mb-1.5 w-[120px] rounded-lg border-2 border-border-heavy bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-10">
+        <div class="absolute bottom-full right-0 mb-1.5 w-[120px] rounded-lg border-2 border-border-heavy bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-50">
           <button
             type="button"
             class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
