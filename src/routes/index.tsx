@@ -77,13 +77,13 @@ const FIRST_VISIT_LIBRARY_ITEMS: Array<LibraryItem> = [
   {
     id: '01KHR1QQHMTKFGWEBM504KNZ57',
     directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1QQHMTKFGWEBM504KNZ57/original.gif',
     markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif)',
+      '![image](https://piccy-r2.peculiarnewbie.com/01KHR1QQHMTKFGWEBM504KNZ57/original.gif)',
     bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif[/img]',
+      '[img]https://piccy-r2.peculiarnewbie.com/01KHR1QQHMTKFGWEBM504KNZ57/original.gif[/img]',
     thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1QQHMTKFGWEBM504KNZ57%2Foriginal.gif',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1QQHMTKFGWEBM504KNZ57/original.gif',
     mimeType: 'image/gif',
     sizeBytes: 0,
     width: null,
@@ -95,13 +95,13 @@ const FIRST_VISIT_LIBRARY_ITEMS: Array<LibraryItem> = [
   {
     id: '01KHR1RXC1ZD10SPD9F3CH2M1D',
     directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1RXC1ZD10SPD9F3CH2M1D/original.jpg',
     markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg)',
+      '![image](https://piccy-r2.peculiarnewbie.com/01KHR1RXC1ZD10SPD9F3CH2M1D/original.jpg)',
     bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg[/img]',
+      '[img]https://piccy-r2.peculiarnewbie.com/01KHR1RXC1ZD10SPD9F3CH2M1D/original.jpg[/img]',
     thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1RXC1ZD10SPD9F3CH2M1D%2Foriginal.jpg',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1RXC1ZD10SPD9F3CH2M1D/original.jpg',
     mimeType: 'image/jpeg',
     sizeBytes: 0,
     width: null,
@@ -113,13 +113,13 @@ const FIRST_VISIT_LIBRARY_ITEMS: Array<LibraryItem> = [
   {
     id: '01KHR1VA69NVHKNM4DNY408WDS',
     directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1VA69NVHKNM4DNY408WDS/original.gif',
     markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif)',
+      '![image](https://piccy-r2.peculiarnewbie.com/01KHR1VA69NVHKNM4DNY408WDS/original.gif)',
     bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif[/img]',
+      '[img]https://piccy-r2.peculiarnewbie.com/01KHR1VA69NVHKNM4DNY408WDS/original.gif[/img]',
     thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1VA69NVHKNM4DNY408WDS%2Foriginal.gif',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1VA69NVHKNM4DNY408WDS/original.gif',
     mimeType: 'image/gif',
     sizeBytes: 0,
     width: null,
@@ -131,13 +131,13 @@ const FIRST_VISIT_LIBRARY_ITEMS: Array<LibraryItem> = [
   {
     id: '01KHR1ZXVT6P9TYKWZNBNV13V4',
     directUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1ZXVT6P9TYKWZNBNV13V4/original.png',
     markdown:
-      '![image](https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png)',
+      '![image](https://piccy-r2.peculiarnewbie.com/01KHR1ZXVT6P9TYKWZNBNV13V4/original.png)',
     bbcode:
-      '[img]https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png[/img]',
+      '[img]https://piccy-r2.peculiarnewbie.com/01KHR1ZXVT6P9TYKWZNBNV13V4/original.png[/img]',
     thumbUrl:
-      'https://piccy.peculiarnewbie.com/i/01KHR1ZXVT6P9TYKWZNBNV13V4%2Foriginal.png',
+      'https://piccy-r2.peculiarnewbie.com/01KHR1ZXVT6P9TYKWZNBNV13V4/original.png',
     mimeType: 'image/png',
     sizeBytes: 0,
     width: null,
