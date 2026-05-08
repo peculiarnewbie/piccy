@@ -98,6 +98,7 @@ type UploadListItem = {
   markdown: string
   bbcode: string
   thumbUrl: string
+  thumbR2Key: string | null
   webpUrl: string | null
   mimeType: string
   sizeBytes: number
@@ -1287,6 +1288,7 @@ const toUploadListItem = (
     thumbUrl: row.thumb_r2_key
       ? toDirectUrl(request, row.thumb_r2_key)
       : directUrl,
+    thumbR2Key: row.thumb_r2_key,
     webpUrl: row.webp_r2_key ? toDirectUrl(request, row.webp_r2_key) : null,
     mimeType: row.mime_type,
     sizeBytes: row.size_bytes,

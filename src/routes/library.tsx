@@ -24,6 +24,7 @@ type UploadPayload = {
   directUrl: string
   markdown: string
   bbcode: string
+  thumbR2Key: string | null
 }
 
 type CopyFormat = 'direct' | 'markdown' | 'bbcode'
@@ -31,6 +32,7 @@ type CopySource = 'uploader' | 'library'
 
 type LibraryItem = UploadPayload & {
   thumbUrl: string
+  thumbR2Key: string | null
   mimeType: string
   sizeBytes: number
   width: number | null
@@ -222,6 +224,33 @@ const uploadWithRetry = async (
   }
 
   throw new UploadRequestError('Upload failed unexpectedly.', false)
+}
+
+const proxyImageUrl = (r2Key: string): string => {
+  return `${window.location.origin}/i/${encodeURIComponent(r2Key)}`
+}
+
+const copyImageToClipboard = async (imageUrl: string): Promise<void> => {
+  if (
+    !('clipboard' in navigator) ||
+    typeof navigator.clipboard.write !== 'function'
+  ) {
+    throw new Error('Clipboard API not supported.')
+  }
+
+  const response = await fetch(imageUrl)
+
+  if (!response.ok) {
+    throw new Error('Failed to load image.')
+  }
+
+  const blob = await response.blob()
+
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      [blob.type]: blob,
+    }),
+  ])
 }
 
 const copyToClipboard = async (value: string): Promise<void> => {
@@ -707,6 +736,23 @@ function LibraryWorkspace() {
     }
   }
 
+  const copyLibraryItemImage = async (item: LibraryItem): Promise<void> => {
+    if (!item.thumbR2Key) {
+      pushToast('error', 'No thumbnail available for this image.')
+      return
+    }
+
+    const sameOriginUrl = proxyImageUrl(item.thumbR2Key)
+
+    try {
+      await copyImageToClipboard(sameOriginUrl)
+      pushToast('success', 'Image copied to clipboard')
+      markCopiedCard(item.id)
+    } catch {
+      pushToast('error', 'Failed to copy image. Please try manually.')
+    }
+  }
+
   const copyLibraryItem = async (
     item: LibraryItem,
     format: CopyFormat,
@@ -1188,6 +1234,16 @@ function LibraryWorkspace() {
         return
       }
 
+      if (event.key === 'i') {
+        event.preventDefault()
+        const index = focusedIndex()
+        const items = libraryItems()
+        if (index >= 0 && index < items.length) {
+          void copyLibraryItemImage(items[index])
+        }
+        return
+      }
+
       if (event.key === 'Delete' || event.key === 'd') {
         event.preventDefault()
         const index = focusedIndex()
@@ -1250,7 +1306,7 @@ function LibraryWorkspace() {
                 Library
               </h1>
               <p class="font-mono text-[11px] md:text-[12px] text-text-dim mt-0.5 md:mt-1">
-                Click an image to copy. Use URL, MD, or BB on each card.
+                Click to copy URL. Use URL, MD, or BB on each card. <span class="kbd">I</span> to copy image.
               </p>
             </div>
 
@@ -1679,6 +1735,9 @@ function LibraryWorkspace() {
                                   onCopyFormat={(format) => {
                                     void copyLibraryItem(item, format)
                                   }}
+                                  onCopyImage={() => {
+                                    void copyLibraryItemImage(item)
+                                  }}
                                   onEditDescription={() => {
                                     beginDescriptionEdit(item)
                                   }}
@@ -2051,6 +2110,7 @@ function CardOverflowMenu(props: {
   item: LibraryItem
   isDeleting: Accessor<boolean>
   onCopyFormat: (format: CopyFormat) => void
+  onCopyImage: () => void
   onEditDescription: () => void
   onDelete: () => void
 }) {
@@ -2089,6 +2149,17 @@ function CardOverflowMenu(props: {
 
       <Show when={open()}>
         <div class="absolute bottom-full right-0 mb-1.5 w-[120px] rounded-lg border-2 border-border-heavy bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-50">
+          <button
+            type="button"
+            class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
+            onClick={(event) => {
+              event.stopPropagation()
+              props.onCopyImage()
+              closeMenu()
+            }}
+          >
+            Copy Image
+          </button>
           <button
             type="button"
             class="w-full text-left px-3 py-2 font-mono text-[11px] text-text-dim hover:text-text hover:bg-surface-2 transition-colors"
